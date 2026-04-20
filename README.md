@@ -59,10 +59,10 @@ python scripts/run_gsm8k_baseline.py \
   --resume
 ```
 
-Or use the 3070-friendly launcher:
+Or use the baseline launcher:
 
 ```bash
-bash scripts/run_baseline_3070.sh
+bash scripts/run_baseline_smoke.sh
 ```
 
 The same flow is available through `make`:
@@ -96,10 +96,10 @@ first calls GSM8K. The repository intentionally does not commit dataset files,
 prediction JSONL files, checkpoints, or logs. Local artifacts are written under
 `data/processed/`, `outputs/`, `runs/`, or `wandb/`.
 
-Run a minimal end-to-end smoke flow on the 3070 machine:
+Run a minimal end-to-end smoke flow:
 
 ```bash
-bash scripts/run_pipeline_smoke_3070.sh
+bash scripts/run_pipeline_smoke.sh
 ```
 
 Or run individual stages:

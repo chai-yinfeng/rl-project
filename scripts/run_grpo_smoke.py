@@ -16,7 +16,7 @@ from grpo_reasoning.training.grpo import (
 from grpo_reasoning.training.runtime import set_seed
 
 
-DEFAULT_CONFIG = Path("configs/train/grpo_smoke_3070.json")
+DEFAULT_CONFIG = Path("configs/train/grpo_smoke.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -96,4 +96,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

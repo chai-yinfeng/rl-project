@@ -51,21 +51,21 @@ python scripts/run_grpo_smoke.py --dry-run
 python scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
 ```
 
-## 3070 Smoke Flow
+## Smoke Flow
 
-On the 8GB RTX 3070 machine, start with the smoke pipeline:
+On a GPU machine, start with the smoke pipeline:
 
 ```bash
-bash scripts/run_pipeline_smoke_3070.sh
+bash scripts/run_pipeline_smoke.sh
 ```
 
 If that completes, increase gradually:
 
 ```bash
-GRPO_EXAMPLES=32 GRPO_STEPS=5 bash scripts/run_pipeline_smoke_3070.sh
+GRPO_EXAMPLES=32 GRPO_STEPS=5 bash scripts/run_pipeline_smoke.sh
 ```
 
-For 8GB VRAM, keep the first GRPO experiments conservative:
+For small GPUs, keep the first GRPO experiments conservative:
 
 - model: `Qwen/Qwen2.5-0.5B-Instruct`
 - batch size: `1`
@@ -91,4 +91,3 @@ The project currently supports a minimal GRPO smoke training path through TRL's
 training configuration, and checkpoint writing are connected. It is not yet a final
 experiment; final runs should increase sample count, max steps, logging, and
 evaluation after each checkpoint.
-

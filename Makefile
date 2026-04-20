@@ -46,4 +46,4 @@ grpo-smoke:
 	$(PYTHON) scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
 
 pipeline-smoke:
-	bash scripts/run_pipeline_smoke_3070.sh
+	bash scripts/run_pipeline_smoke.sh
