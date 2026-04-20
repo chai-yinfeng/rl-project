@@ -1,0 +1,12 @@
+{
+  "dataset": "gsm8k",
+  "subset": "main",
+  "split": "test",
+  "max_eval_examples": 200,
+  "prompt_style": "step_by_step_final_answer",
+  "metrics": [
+    "exact_match_accuracy",
+    "invalid_answer_rate"
+  ]
+}
+

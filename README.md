@@ -33,3 +33,32 @@ GRPO against PPO-style RLHF and DPO-style preference optimization where feasible
 4. Add PPO/DPO baselines or use well-scoped library baselines.
 5. Run controlled experiments and summarize stability, accuracy, and cost.
 
+## Quick Start
+
+Install the project in editable mode:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+Inspect a few GSM8K examples:
+
+```bash
+python scripts/inspect_gsm8k.py --split test --limit 3
+```
+
+Evaluate a JSONL prediction file:
+
+```bash
+python scripts/evaluate_predictions.py data/processed/predictions.jsonl
+```
+
+Each prediction record should include one prediction field, such as `completion`,
+`prediction`, `response`, or `generated_text`, and one answer field, such as
+`gold_answer`, `answer`, `target`, or `reference`.
+
+Run local tests:
+
+```bash
+pytest
+```
