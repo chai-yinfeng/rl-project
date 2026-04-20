@@ -4,9 +4,12 @@
   "split": "test",
   "max_eval_examples": 200,
   "prompt_style": "step_by_step_final_answer",
+  "baseline_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "batch_size": 1,
+  "max_new_tokens": 256,
+  "temperature": 0.0,
   "metrics": [
     "exact_match_accuracy",
     "invalid_answer_rate"
   ]
 }
-

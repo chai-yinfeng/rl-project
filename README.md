@@ -47,10 +47,36 @@ Inspect a few GSM8K examples:
 python scripts/inspect_gsm8k.py --split test --limit 3
 ```
 
+Run a small baseline inference job:
+
+```bash
+python scripts/run_gsm8k_baseline.py \
+  --model Qwen/Qwen2.5-0.5B-Instruct \
+  --limit 100 \
+  --batch-size 1 \
+  --max-new-tokens 256 \
+  --output data/processed/gsm8k_baseline.jsonl \
+  --resume
+```
+
+Or use the 3070-friendly launcher:
+
+```bash
+bash scripts/run_baseline_3070.sh
+```
+
+The same flow is available through `make`:
+
+```bash
+make baseline-smoke
+make baseline-100
+make evaluate-baseline
+```
+
 Evaluate a JSONL prediction file:
 
 ```bash
-python scripts/evaluate_predictions.py data/processed/predictions.jsonl
+python scripts/evaluate_predictions.py data/processed/gsm8k_baseline.jsonl
 ```
 
 Each prediction record should include one prediction field, such as `completion`,
@@ -62,3 +88,28 @@ Run local tests:
 ```bash
 pytest
 ```
+
+## Pipeline
+
+The dataset is downloaded automatically by Hugging Face `datasets` when a script
+first calls GSM8K. The repository intentionally does not commit dataset files,
+prediction JSONL files, checkpoints, or logs. Local artifacts are written under
+`data/processed/`, `outputs/`, `runs/`, or `wandb/`.
+
+Run a minimal end-to-end smoke flow on the 3070 machine:
+
+```bash
+bash scripts/run_pipeline_smoke_3070.sh
+```
+
+Or run individual stages:
+
+```bash
+make inspect-gsm8k
+make baseline-smoke
+python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
+make grpo-dry-run
+make grpo-smoke
+```
+
+See `docs/pipeline.md` for the full project flow and module responsibilities.

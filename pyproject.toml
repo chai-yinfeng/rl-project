@@ -23,6 +23,9 @@ dev = [
     "pytest",
     "ruff",
 ]
+quantization = [
+    "bitsandbytes",
+]
 
 [tool.ruff]
 line-length = 100
