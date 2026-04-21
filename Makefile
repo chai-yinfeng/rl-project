@@ -1,4 +1,4 @@
-.PHONY: lock sync sync-quant test inspect-gsm8k baseline-smoke baseline-100 evaluate-baseline grpo-dry-run grpo-smoke pipeline-smoke
+.PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k baseline-smoke baseline-100 evaluate-baseline grpo-dry-run grpo-smoke pipeline-smoke
 
 UV ?= uv
 RUN ?= $(UV) run
@@ -15,6 +15,15 @@ sync:
 
 sync-quant:
 	$(UV) sync --extra dev --extra quantization
+
+pip-install-dev:
+	python -m pip install -e ".[dev]"
+
+pip-install-quant:
+	python -m pip install -e ".[dev,quantization]"
+
+pip-test:
+	python -m pytest
 
 test:
 	$(PYTHON) -m pytest

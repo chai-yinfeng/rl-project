@@ -52,6 +52,7 @@ The standard `pip` path is also supported:
 
 ```bash
 python -m pip install -e ".[dev]"
+python -m pytest
 ```
 
 Inspect a few GSM8K examples:
@@ -65,10 +66,11 @@ Run a small baseline inference job:
 ```bash
 uv run python scripts/run_gsm8k_baseline.py \
   --model Qwen/Qwen2.5-0.5B-Instruct \
-  --limit 100 \
+  --limit 10 \
   --batch-size 1 \
-  --max-new-tokens 256 \
-  --output data/processed/gsm8k_baseline.jsonl \
+  --max-new-tokens 512 \
+  --torch-dtype float16 \
+  --output data/processed/gsm8k_baseline_smoke.jsonl \
   --resume
 ```
 
@@ -76,6 +78,13 @@ Or use the baseline launcher:
 
 ```bash
 bash scripts/run_baseline_smoke.sh
+```
+
+Launcher defaults can be overridden through environment variables:
+
+```bash
+LIMIT=100 MAX_NEW_TOKENS=512 bash scripts/run_baseline_smoke.sh
+BASELINE_LIMIT=10 BASELINE_MAX_NEW_TOKENS=512 bash scripts/run_pipeline_smoke.sh
 ```
 
 The shell launchers automatically use `uv run python` when `uv` is available. To
@@ -88,22 +97,23 @@ PYTHON_CMD=python bash scripts/run_baseline_smoke.sh
 The same flow is available through `make`:
 
 ```bash
+make sync
 make baseline-smoke
 make baseline-100
 make evaluate-baseline
 ```
 
-For Makefile commands, the default uses `python`. Use `uv` explicitly with:
+Makefile commands default to `uv run python`. Use standard `python` explicitly with:
 
 ```bash
-make PYTHON="uv run python" baseline-smoke
-make PYTHON="uv run python" grpo-dry-run
+make PYTHON=python baseline-smoke
+make PYTHON=python grpo-dry-run
 ```
 
 Evaluate a JSONL prediction file:
 
 ```bash
-uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline.jsonl
+uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
 ```
 
 Each prediction record should include one prediction field, such as `completion`,

@@ -5,6 +5,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 MODEL="${MODEL:-Qwen/Qwen2.5-0.5B-Instruct}"
 BASELINE_LIMIT="${BASELINE_LIMIT:-10}"
+BASELINE_MAX_NEW_TOKENS="${BASELINE_MAX_NEW_TOKENS:-512}"
 GRPO_EXAMPLES="${GRPO_EXAMPLES:-8}"
 GRPO_STEPS="${GRPO_STEPS:-1}"
 BASELINE_OUTPUT="${BASELINE_OUTPUT:-data/processed/gsm8k_baseline_smoke.jsonl}"
@@ -16,7 +17,7 @@ ${PYTHON_CMD} scripts/run_gsm8k_baseline.py \
   --model "${MODEL}" \
   --limit "${BASELINE_LIMIT}" \
   --batch-size 1 \
-  --max-new-tokens 128 \
+  --max-new-tokens "${BASELINE_MAX_NEW_TOKENS}" \
   --torch-dtype float16 \
   --output "${BASELINE_OUTPUT}" \
   --resume

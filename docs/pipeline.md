@@ -18,21 +18,21 @@ The first run on a new machine will download GSM8K into the Hugging Face cache.
 1. Create a `uv` environment and install dependencies:
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync --extra dev
+uv run python -m pytest
 ```
 
 Optional quantization dependencies:
 
 ```bash
-uv pip install -e ".[dev,quantization]"
+uv sync --extra dev --extra quantization
 ```
 
 The standard `pip` path is also supported:
 
 ```bash
 python -m pip install -e ".[dev]"
+python -m pytest
 ```
 
 2. Confirm GSM8K can be loaded:
@@ -82,12 +82,20 @@ If that completes, increase gradually:
 GRPO_EXAMPLES=32 GRPO_STEPS=5 bash scripts/run_pipeline_smoke.sh
 ```
 
+Baseline generation length can be adjusted without editing code:
+
+```bash
+BASELINE_MAX_NEW_TOKENS=512 bash scripts/run_pipeline_smoke.sh
+MAX_NEW_TOKENS=512 bash scripts/run_baseline_smoke.sh
+```
+
 For small GPUs, keep the first GRPO experiments conservative:
 
 - model: `Qwen/Qwen2.5-0.5B-Instruct`
 - batch size: `1`
 - num generations: `2`
-- max completion length: `128`
+- baseline max new tokens: `512`
+- GRPO max completion length: `128`
 - max steps: `1` to `5` for smoke tests
 
 ## Module Responsibilities
