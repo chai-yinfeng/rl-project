@@ -15,7 +15,21 @@ The first run on a new machine will download GSM8K into the Hugging Face cache.
 
 ## Minimal Flow
 
-1. Install dependencies:
+1. Create a `uv` environment and install dependencies:
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+```
+
+Optional quantization dependencies:
+
+```bash
+uv pip install -e ".[dev,quantization]"
+```
+
+The standard `pip` path is also supported:
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -36,19 +50,19 @@ make baseline-smoke
 4. Evaluate baseline predictions:
 
 ```bash
-python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
+uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
 ```
 
 5. Dry-run the GRPO smoke configuration:
 
 ```bash
-python scripts/run_grpo_smoke.py --dry-run
+uv run python scripts/run_grpo_smoke.py --dry-run
 ```
 
 6. Run the smallest GRPO smoke job:
 
 ```bash
-python scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
+uv run python scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
 ```
 
 ## Smoke Flow
@@ -58,6 +72,9 @@ On a GPU machine, start with the smoke pipeline:
 ```bash
 bash scripts/run_pipeline_smoke.sh
 ```
+
+The shell launchers use `uv run python` automatically when `uv` is available. Set
+`PYTHON_CMD=python` if you want to force the standard Python interpreter.
 
 If that completes, increase gradually:
 

@@ -35,7 +35,21 @@ GRPO against PPO-style RLHF and DPO-style preference optimization where feasible
 
 ## Quick Start
 
-Install the project in editable mode:
+Create an environment with `uv`:
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+```
+
+Install optional quantization dependencies when needed:
+
+```bash
+uv pip install -e ".[dev,quantization]"
+```
+
+The standard `pip` path is also supported:
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -44,13 +58,13 @@ python -m pip install -e ".[dev]"
 Inspect a few GSM8K examples:
 
 ```bash
-python scripts/inspect_gsm8k.py --split test --limit 3
+uv run python scripts/inspect_gsm8k.py --split test --limit 3
 ```
 
 Run a small baseline inference job:
 
 ```bash
-python scripts/run_gsm8k_baseline.py \
+uv run python scripts/run_gsm8k_baseline.py \
   --model Qwen/Qwen2.5-0.5B-Instruct \
   --limit 100 \
   --batch-size 1 \
@@ -65,6 +79,13 @@ Or use the baseline launcher:
 bash scripts/run_baseline_smoke.sh
 ```
 
+The shell launchers automatically use `uv run python` when `uv` is available. To
+force a specific interpreter, set `PYTHON_CMD`, for example:
+
+```bash
+PYTHON_CMD=python bash scripts/run_baseline_smoke.sh
+```
+
 The same flow is available through `make`:
 
 ```bash
@@ -73,10 +94,17 @@ make baseline-100
 make evaluate-baseline
 ```
 
+For Makefile commands, the default uses `python`. Use `uv` explicitly with:
+
+```bash
+make PYTHON="uv run python" baseline-smoke
+make PYTHON="uv run python" grpo-dry-run
+```
+
 Evaluate a JSONL prediction file:
 
 ```bash
-python scripts/evaluate_predictions.py data/processed/gsm8k_baseline.jsonl
+uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline.jsonl
 ```
 
 Each prediction record should include one prediction field, such as `completion`,
@@ -86,7 +114,7 @@ Each prediction record should include one prediction field, such as `completion`
 Run local tests:
 
 ```bash
-pytest
+uv run python -m pytest
 ```
 
 ## Pipeline
@@ -107,7 +135,7 @@ Or run individual stages:
 ```bash
 make inspect-gsm8k
 make baseline-smoke
-python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
+uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
 make grpo-dry-run
 make grpo-smoke
 ```
