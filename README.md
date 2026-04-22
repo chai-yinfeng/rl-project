@@ -38,15 +38,14 @@ GRPO against PPO-style RLHF and DPO-style preference optimization where feasible
 Create an environment with `uv`:
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync --extra dev
+uv run python -m pytest
 ```
 
 Install optional quantization dependencies when needed:
 
 ```bash
-uv pip install -e ".[dev,quantization]"
+uv sync --extra dev extra quantization
 ```
 
 The standard `pip` path is also supported:
