@@ -43,7 +43,7 @@ def load_causal_lm_and_tokenizer(
 
     model_kwargs: dict[str, Any] = {
         "device_map": device_map,
-        "torch_dtype": resolve_torch_dtype(torch_dtype),
+        "dtype": resolve_torch_dtype(torch_dtype),
         "low_cpu_mem_usage": True,
         "trust_remote_code": trust_remote_code,
     }

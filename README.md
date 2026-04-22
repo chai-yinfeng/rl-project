@@ -45,7 +45,7 @@ uv run python -m pytest
 Install optional quantization dependencies when needed:
 
 ```bash
-uv sync --extra dev extra quantization
+uv sync --extra dev --extra quantization
 ```
 
 The standard `pip` path is also supported:

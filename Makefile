@@ -27,7 +27,7 @@ baseline-smoke:
 		--model $(BASELINE_MODEL) \
 		--limit 10 \
 		--batch-size 1 \
-		--max-new-tokens 128 \
+		--max-new-tokens 512 \
 		--torch-dtype float16 \
 		--output data/processed/gsm8k_baseline_smoke.jsonl \
 		--resume

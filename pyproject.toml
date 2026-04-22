@@ -11,6 +11,7 @@ dependencies = [
     "accelerate",
     "datasets",
     "evaluate",
+    "huggingface-hub>=1.11.0",
     "numpy",
     "torch",
     "tqdm",
