@@ -1,4 +1,4 @@
-.PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k baseline-smoke baseline-100 evaluate-baseline grpo-dry-run grpo-smoke pipeline-smoke
+.PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k baseline-smoke baseline-100 evaluate-baseline dpo-pairs-dry-run dpo-pairs-small dpo-train-dry-run dpo-train-small dpo-smoke grpo-dry-run grpo-lite-dry-run grpo-smoke grpo-lite pipeline-smoke
 
 UV ?= uv
 RUN ?= $(UV) run
@@ -6,6 +6,8 @@ PYTHON ?= $(RUN) python
 
 BASELINE_OUTPUT ?= data/processed/gsm8k_baseline_qwen_0_5b_100.jsonl
 BASELINE_MODEL ?= Qwen/Qwen2.5-0.5B-Instruct
+DPO_PAIRS_OUTPUT ?= data/processed/gsm8k_dpo_pairs_qwen_0_5b_train200_k4.jsonl
+DPO_MODEL ?= $(BASELINE_MODEL)
 
 lock:
 	$(UV) lock
@@ -54,11 +56,46 @@ baseline-100:
 evaluate-baseline:
 	$(PYTHON) scripts/evaluate_predictions.py $(BASELINE_OUTPUT)
 
+dpo-pairs-dry-run:
+	$(PYTHON) scripts/build_dpo_pairs.py \
+		--model $(DPO_MODEL) \
+		--limit 200 \
+		--num-completions 4 \
+		--output $(DPO_PAIRS_OUTPUT) \
+		--dry-run
+
+dpo-pairs-small:
+	$(PYTHON) scripts/build_dpo_pairs.py \
+		--model $(DPO_MODEL) \
+		--limit 200 \
+		--num-completions 4 \
+		--max-new-tokens 128 \
+		--temperature 0.7 \
+		--top-p 0.95 \
+		--torch-dtype float16 \
+		--output $(DPO_PAIRS_OUTPUT) \
+		--resume
+
+dpo-train-dry-run:
+	$(PYTHON) scripts/run_dpo_train.py --dry-run
+
+dpo-train-small:
+	$(PYTHON) scripts/run_dpo_train.py
+
+dpo-smoke:
+	bash scripts/run_dpo_smoke.sh
+
 grpo-dry-run:
 	$(PYTHON) scripts/run_grpo_smoke.py --dry-run
+
+grpo-lite-dry-run:
+	$(PYTHON) scripts/run_grpo_smoke.py --config configs/train/grpo_lite_8gb.json --dry-run
 
 grpo-smoke:
 	$(PYTHON) scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
 
+grpo-lite:
+	$(PYTHON) scripts/run_grpo_smoke.py --config configs/train/grpo_lite_8gb.json
+
 pipeline-smoke:
-	$(RUN) bash scripts/run_pipeline_smoke.sh
+	bash scripts/run_pipeline_smoke.sh

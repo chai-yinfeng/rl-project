@@ -13,6 +13,7 @@ dependencies = [
     "evaluate",
     "huggingface-hub>=1.11.0",
     "numpy",
+    "peft",
     "torch",
     "tqdm",
     "transformers",

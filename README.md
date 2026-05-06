@@ -30,8 +30,9 @@ GRPO against PPO-style RLHF and DPO-style preference optimization where feasible
 1. Build a supervised/evaluation baseline on GSM8K.
 2. Implement reward extraction for math answers.
 3. Implement GRPO training with configurable group size.
-4. Add PPO/DPO baselines or use well-scoped library baselines.
-5. Run controlled experiments and summarize stability, accuracy, and cost.
+4. Add a DPO baseline from synthetic GSM8K preference pairs.
+5. Add PPO as a toy or larger-GPU comparison if compute permits.
+6. Run controlled experiments and summarize stability, accuracy, and cost.
 
 ## Quick Start
 
@@ -126,6 +127,44 @@ Run local tests:
 uv run python -m pytest
 ```
 
+## DPO Flow
+
+DPO uses synthetic preference pairs generated from GSM8K prompts. For each prompt,
+the base model samples multiple completions; the existing GSM8K rule reward chooses
+the highest-scoring completion as `chosen` and the lowest-scoring completion as
+`rejected`.
+
+```bash
+make dpo-pairs-dry-run
+make dpo-pairs-small
+make dpo-train-dry-run
+make dpo-train-small
+```
+
+For a very small end-to-end DPO smoke path:
+
+```bash
+make dpo-smoke
+```
+
+For QLoRA-style runs, install the optional quantization extras:
+
+```bash
+uv sync --extra dev --extra quantization
+# or
+python -m pip install -e ".[dev,quantization]"
+```
+
+## GRPO Flow
+
+The default smoke config is intentionally tiny and uses `beta=0.0` to avoid loading
+a reference model on small GPUs. A slightly larger 8GB-oriented config is available:
+
+```bash
+make grpo-lite-dry-run
+make grpo-lite
+```
+
 ## Pipeline
 
 The dataset is downloaded automatically by Hugging Face `datasets` when a script
@@ -145,6 +184,8 @@ Or run individual stages:
 make inspect-gsm8k
 make baseline-smoke
 uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
+make dpo-pairs-dry-run
+make dpo-train-dry-run
 make grpo-dry-run
 make grpo-smoke
 ```

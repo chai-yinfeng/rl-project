@@ -65,6 +65,13 @@ uv run python scripts/run_grpo_smoke.py --dry-run
 uv run python scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
 ```
 
+7. Dry-run DPO pair construction and DPO training:
+
+```bash
+make dpo-pairs-dry-run
+make dpo-train-dry-run
+```
+
 ## Smoke Flow
 
 On a GPU machine, start with the smoke pipeline:
@@ -95,8 +102,55 @@ For small GPUs, keep the first GRPO experiments conservative:
 - batch size: `1`
 - num generations: `2`
 - baseline max new tokens: `512`
-- GRPO max completion length: `128`
+- GRPO max completion length: `96` to `128`
+- GRPO beta: `0.0` for the first local run, then optionally `0.001` or `0.01`
 - max steps: `1` to `5` for smoke tests
+
+## DPO Flow
+
+DPO uses offline preference pairs in the standard TRL schema:
+
+```json
+{
+  "prompt": "Problem text and instructions",
+  "chosen": "Higher-reward completion",
+  "rejected": "Lower-reward completion"
+}
+```
+
+Build synthetic pairs from the base model:
+
+```bash
+make dpo-pairs-small
+```
+
+The pair builder samples completions per GSM8K prompt, scores them with the same
+rule reward used by GRPO, and keeps prompts where the best and worst completion
+have different scores. The default output is:
+
+```text
+data/processed/gsm8k_dpo_pairs_qwen_0_5b_train200_k4.jsonl
+```
+
+Train DPO with TRL:
+
+```bash
+make dpo-train-small
+```
+
+For a tiny end-to-end smoke run:
+
+```bash
+make dpo-smoke
+```
+
+The shell launchers source `scripts/common.sh`. By default they use `uv run python`
+when `uv` is installed and fall back to `python`. You can force a venv interpreter:
+
+```bash
+PYTHON_CMD=python bash scripts/run_dpo_smoke.sh
+make PYTHON=python dpo-train-dry-run
+```
 
 ## Module Responsibilities
 
@@ -111,8 +165,14 @@ For small GPUs, keep the first GRPO experiments conservative:
 
 ## Current Scope
 
-The project currently supports a minimal GRPO smoke training path through TRL's
-`GRPOTrainer`. This validates that data loading, reward computation, generation,
-training configuration, and checkpoint writing are connected. It is not yet a final
-experiment; final runs should increase sample count, max steps, logging, and
+The project currently supports:
+
+- baseline GSM8K inference and JSONL evaluation
+- synthetic DPO pair construction from GSM8K rule rewards
+- DPO training through TRL's `DPOTrainer`
+- GRPO smoke and 8GB-oriented lite training through TRL's `GRPOTrainer`
+
+These validate that data loading, reward computation, generation, training
+configuration, and checkpoint writing are connected. They are not yet final
+experiments; final runs should increase sample count, max steps, logging, and
 evaluation after each checkpoint.
