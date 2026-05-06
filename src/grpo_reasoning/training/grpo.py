@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from grpo_reasoning.evaluation.answer_extraction import extract_predicted_answer
@@ -46,29 +47,6 @@ def build_grpo_config(config: dict[str, Any]):
     except ImportError as exc:
         raise RuntimeError("Install trl before running GRPO training.") from exc
 
-    allowed_keys = {
-        "output_dir",
-        "seed",
-        "per_device_train_batch_size",
-        "gradient_accumulation_steps",
-        "max_steps",
-        "learning_rate",
-        "num_generations",
-        "max_prompt_length",
-        "max_completion_length",
-        "temperature",
-        "top_p",
-        "beta",
-        "epsilon",
-        "optim",
-        "fp16",
-        "bf16",
-        "gradient_checkpointing",
-        "save_steps",
-        "logging_steps",
-        "logging_dir",
-        "report_to",
-        "model_init_kwargs",
-    }
+    allowed_keys = set(inspect.signature(GRPOConfig.__init__).parameters)
     kwargs = {key: value for key, value in config.items() if key in allowed_keys}
     return GRPOConfig(**kwargs)

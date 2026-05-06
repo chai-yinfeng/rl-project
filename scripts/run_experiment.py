@@ -162,6 +162,10 @@ def main() -> None:
             ]
             if dpo_pair_config.get("load_in_4bit", False):
                 command.append("--load-in-4bit")
+            if dpo_pair_config.get("allow_ties", False):
+                command.append("--allow-ties")
+            if dpo_pair_config.get("include_gold_chosen", False):
+                command.append("--include-gold-chosen")
             run_command(command, dry_run=args.dry_run)
 
         elif stage == "dpo-train":

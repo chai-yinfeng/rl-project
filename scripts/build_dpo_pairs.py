@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from grpo_reasoning.data.gsm8k import load_gsm8k_split
 from grpo_reasoning.models.loading import load_causal_lm_and_tokenizer
-from grpo_reasoning.training.dpo import choose_preference_pair
+from grpo_reasoning.training.dpo import build_gold_chosen_pair, choose_preference_pair, score_gsm8k_completion
 from grpo_reasoning.training.runtime import set_seed
 
 
@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("data/processed/gsm8k_dpo_pairs.jsonl"))
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-ties", action="store_true")
+    parser.add_argument("--include-gold-chosen", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -102,6 +103,7 @@ def main() -> None:
                     "candidate_examples": len(indices),
                     "pending_examples": len(pending_indices),
                     "num_completions": args.num_completions,
+                    "include_gold_chosen": args.include_gold_chosen,
                     "output": str(args.output),
                 },
                 indent=2,
@@ -126,11 +128,18 @@ def main() -> None:
         for example_index in tqdm(pending_indices):
             record = dataset[example_index]
             completions = generate_completions(model, tokenizer, record["prompt"], args)
-            pair = choose_preference_pair(
-                completions,
-                record["gold_answer"],
-                require_distinct_scores=not args.allow_ties,
-            )
+            if args.include_gold_chosen:
+                rejected = min(
+                    completions,
+                    key=lambda completion: score_gsm8k_completion(completion, record["gold_answer"]),
+                )
+                pair = build_gold_chosen_pair(rejected, record["answer"], record["gold_answer"])
+            else:
+                pair = choose_preference_pair(
+                    completions,
+                    record["gold_answer"],
+                    require_distinct_scores=not args.allow_ties,
+                )
             if pair is None:
                 skipped += 1
                 continue

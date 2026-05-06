@@ -58,7 +58,7 @@ def load_model_and_tokenizer(args: argparse.Namespace):
 
     model_kwargs: dict[str, Any] = {
         "device_map": args.device_map,
-        "torch_dtype": resolve_torch_dtype(args.torch_dtype),
+        "dtype": resolve_torch_dtype(args.torch_dtype),
         "low_cpu_mem_usage": True,
     }
     if args.load_in_4bit:

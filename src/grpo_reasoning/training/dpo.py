@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +55,23 @@ def choose_preference_pair(
     }
 
 
+def build_gold_chosen_pair(
+    rejected_completion: str,
+    answer: str,
+    gold_answer: str | int | float | None,
+) -> dict[str, Any]:
+    """Build a reliable DPO pair using the dataset solution as chosen."""
+    chosen = f"{str(answer).strip()}\n\nFinal answer: {gold_answer}"
+    return {
+        "chosen": chosen,
+        "rejected": rejected_completion,
+        "chosen_score": score_gsm8k_completion(chosen, gold_answer),
+        "rejected_score": score_gsm8k_completion(rejected_completion, gold_answer),
+        "chosen_predicted_answer": extract_predicted_answer(chosen),
+        "rejected_predicted_answer": extract_predicted_answer(rejected_completion),
+    }
+
+
 def load_dpo_jsonl(path: Path):
     """Load prompt/chosen/rejected JSONL data as a datasets.Dataset."""
     try:
@@ -88,33 +106,6 @@ def build_dpo_config(config: dict[str, Any]):
     except ImportError as exc:
         raise RuntimeError("Install trl before running DPO training.") from exc
 
-    allowed_keys = {
-        "output_dir",
-        "seed",
-        "per_device_train_batch_size",
-        "gradient_accumulation_steps",
-        "num_train_epochs",
-        "max_steps",
-        "learning_rate",
-        "lr_scheduler_type",
-        "warmup_steps",
-        "weight_decay",
-        "max_grad_norm",
-        "optim",
-        "fp16",
-        "bf16",
-        "gradient_checkpointing",
-        "save_steps",
-        "save_strategy",
-        "logging_steps",
-        "logging_dir",
-        "report_to",
-        "remove_unused_columns",
-        "model_init_kwargs",
-        "max_length",
-        "beta",
-        "precompute_ref_log_probs",
-        "precompute_ref_batch_size",
-    }
+    allowed_keys = set(inspect.signature(DPOConfig.__init__).parameters)
     kwargs = {key: value for key, value in config.items() if key in allowed_keys}
     return DPOConfig(**kwargs)

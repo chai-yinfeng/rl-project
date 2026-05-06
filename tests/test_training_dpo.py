@@ -1,4 +1,8 @@
-from grpo_reasoning.training.dpo import choose_preference_pair, score_gsm8k_completion
+from grpo_reasoning.training.dpo import (
+    build_gold_chosen_pair,
+    choose_preference_pair,
+    score_gsm8k_completion,
+)
 
 
 def test_score_gsm8k_completion_combines_correctness_and_format():
@@ -24,3 +28,10 @@ def test_choose_preference_pair_uses_best_and_worst_scores():
 
 def test_choose_preference_pair_can_skip_ties():
     assert choose_preference_pair(["Final answer: 1", "Final answer: 2"], "42") is None
+
+
+def test_build_gold_chosen_pair_uses_gold_solution_as_chosen():
+    pair = build_gold_chosen_pair("Reasoning. Final answer: 12", "We compute it. #### 42", "42")
+
+    assert pair["chosen_score"] > pair["rejected_score"]
+    assert pair["chosen_predicted_answer"] == "42"
