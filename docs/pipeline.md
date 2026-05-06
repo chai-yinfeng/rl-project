@@ -1,178 +1,87 @@
 # Pipeline
 
-## Data
+## Entry Design
 
-GSM8K is loaded by the scripts through Hugging Face `datasets`. The repository does
-not commit dataset files, model outputs, checkpoints, or run logs. Those artifacts
-are created locally under:
-
-- `data/raw/` for optional local raw data.
-- `data/processed/` for generated prediction JSONL files.
-- `outputs/` for GRPO checkpoints and trainer outputs.
-- `runs/` or `wandb/` for optional experiment tracking.
-
-The first run on a new machine will download GSM8K into the Hugging Face cache.
-
-## Minimal Flow
-
-1. Create a `uv` environment and install dependencies:
-
-```bash
-uv sync --extra dev
-uv run python -m pytest
-```
-
-Optional quantization dependencies:
-
-```bash
-uv sync --extra dev --extra quantization
-```
-
-The standard `pip` path is also supported:
-
-```bash
-python -m pip install -e ".[dev]"
-python -m pytest
-```
-
-2. Confirm GSM8K can be loaded:
-
-```bash
-make inspect-gsm8k
-```
-
-3. Run baseline inference:
-
-```bash
-make baseline-smoke
-```
-
-4. Evaluate baseline predictions:
-
-```bash
-uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
-```
-
-5. Dry-run the GRPO smoke configuration:
-
-```bash
-uv run python scripts/run_grpo_smoke.py --dry-run
-```
-
-6. Run the smallest GRPO smoke job:
-
-```bash
-uv run python scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
-```
-
-7. Dry-run DPO pair construction and DPO training:
-
-```bash
-make dpo-pairs-dry-run
-make dpo-train-dry-run
-```
-
-## Smoke Flow
-
-On a GPU machine, start with the smoke pipeline:
-
-```bash
-bash scripts/run_pipeline_smoke.sh
-```
-
-The shell launchers use `uv run python` automatically when `uv` is available. Set
-`PYTHON_CMD=python` if you want to force the standard Python interpreter.
-
-If that completes, increase gradually:
-
-```bash
-GRPO_EXAMPLES=32 GRPO_STEPS=5 bash scripts/run_pipeline_smoke.sh
-```
-
-Baseline generation length can be adjusted without editing code:
-
-```bash
-BASELINE_MAX_NEW_TOKENS=512 bash scripts/run_pipeline_smoke.sh
-MAX_NEW_TOKENS=512 bash scripts/run_baseline_smoke.sh
-```
-
-For small GPUs, keep the first GRPO experiments conservative:
-
-- model: `Qwen/Qwen2.5-0.5B-Instruct`
-- batch size: `1`
-- num generations: `2`
-- baseline max new tokens: `512`
-- GRPO max completion length: `96` to `128`
-- GRPO beta: `0.0` for the first local run, then optionally `0.001` or `0.01`
-- max steps: `1` to `5` for smoke tests
-
-## DPO Flow
-
-DPO uses offline preference pairs in the standard TRL schema:
-
-```json
-{
-  "prompt": "Problem text and instructions",
-  "chosen": "Higher-reward completion",
-  "rejected": "Lower-reward completion"
-}
-```
-
-Build synthetic pairs from the base model:
-
-```bash
-make dpo-pairs-small
-```
-
-The pair builder samples completions per GSM8K prompt, scores them with the same
-rule reward used by GRPO, and keeps prompts where the best and worst completion
-have different scores. The default output is:
+The user-facing entrypoint is the Makefile. It calls:
 
 ```text
-data/processed/gsm8k_dpo_pairs_qwen_0_5b_train200_k4.jsonl
+scripts/run_experiment.py
 ```
 
-Train DPO with TRL:
+The stage scripts are implementation details:
 
-```bash
-make dpo-train-small
+- `scripts/build_dpo_pairs.py`
+- `scripts/run_dpo_train.py`
+- `scripts/run_grpo_train.py`
+- `scripts/run_ppo_train.py`
+- `scripts/evaluate_model.py`
+- `scripts/package_results.sh`
+
+## Stages
+
+The unified launcher supports these primitive stages:
+
+- `baseline`
+- `dpo-pairs`
+- `dpo-train`
+- `dpo-eval`
+- `grpo-train`
+- `grpo-eval`
+- `ppo-train`
+- `ppo-eval`
+
+It also supports grouped stages:
+
+- `dpo`: pairs, train, eval
+- `dpo-run`: pairs, train
+- `grpo`: train, eval
+- `grpo-run`: train
+- `ppo`: train, eval
+- `ppo-run`: train
+- `run`: baseline plus all training stages
+- `eval`: baseline plus all method eval stages
+- `all`: complete run and eval
+
+## Model Configs
+
+The maintained experiment configs are:
+
+```text
+configs/experiments/gsm8k_qwen0_5b_test.json
+configs/experiments/gsm8k_qwen0_5b_full.json
+configs/experiments/gsm8k_qwen1_5b_test.json
+configs/experiments/gsm8k_qwen1_5b_full.json
 ```
 
-For a tiny end-to-end smoke run:
+The test configs are small enough to validate that the server environment,
+generation, training, evaluation, and logging paths work. The full configs are the
+course-project runs.
 
-```bash
-make dpo-smoke
+## Artifacts
+
+Each run writes:
+
+```text
+experiments/<run_name>/
+  config.json
+  configs/
+    dpo_train.json
+    grpo_train.json
+    ppo_train.json
+  data/
+    baseline_predictions.jsonl
+    dpo_pairs.jsonl
+    dpo_predictions.jsonl
+    grpo_predictions.jsonl
+    ppo_predictions.jsonl
+  logs/
+  metrics/
+    baseline.json
+    dpo.json
+    grpo.json
+    ppo.json
+  models/
+    dpo/
+    grpo/
+    ppo/
 ```
-
-The shell launchers source `scripts/common.sh`. By default they use `uv run python`
-when `uv` is installed and fall back to `python`. You can force a venv interpreter:
-
-```bash
-PYTHON_CMD=python bash scripts/run_dpo_smoke.sh
-make PYTHON=python dpo-train-dry-run
-```
-
-## Module Responsibilities
-
-- `src/grpo_reasoning/data/`: dataset loading and prompt formatting.
-- `src/grpo_reasoning/evaluation/`: answer extraction and metrics.
-- `src/grpo_reasoning/rewards/`: reward functions used by baseline analysis and GRPO.
-- `src/grpo_reasoning/models/`: shared model/tokenizer loading helpers.
-- `src/grpo_reasoning/algorithms/`: GRPO algorithm utilities that can be tested without GPUs.
-- `src/grpo_reasoning/training/`: trainer adapters and runtime setup.
-- `scripts/`: runnable project entrypoints.
-- `configs/`: reproducible JSON configs for model, evaluation, and training.
-
-## Current Scope
-
-The project currently supports:
-
-- baseline GSM8K inference and JSONL evaluation
-- synthetic DPO pair construction from GSM8K rule rewards
-- DPO training through TRL's `DPOTrainer`
-- GRPO smoke and 8GB-oriented lite training through TRL's `GRPOTrainer`
-
-These validate that data loading, reward computation, generation, training
-configuration, and checkpoint writing are connected. They are not yet final
-experiments; final runs should increase sample count, max steps, logging, and
-evaluation after each checkpoint.

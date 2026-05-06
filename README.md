@@ -1,193 +1,108 @@
-# EECS E6892 RL Project: GRPO for LLM Reasoning
+# EECS E6892 RL Project: GRPO/DPO/PPO-Style Reasoning
 
-This repository contains the course project for EECS E6892 Reinforcement Learning.
+This repository contains a course project for comparing post-training methods on
+GSM8K-style mathematical reasoning with small open language models.
 
-## Goal
+## Scope
 
-Implement and evaluate Group Relative Policy Optimization (GRPO) for small language
-model reasoning tasks, with GSM8K as the first benchmark. The project will compare
-GRPO against PPO-style RLHF and DPO-style preference optimization where feasible.
+The project compares:
 
-## Core Questions
+- baseline inference
+- DPO from synthetic GSM8K preference pairs
+- GRPO with online grouped rule rewards
+- PPO-style rule-reward training with rollout logprobs, clipped policy updates, and optional reference KL
 
-- Does group-relative advantage estimation improve training stability for reasoning?
-- How does group size affect variance, sample efficiency, and final accuracy?
-- What are the practical tradeoffs between GRPO, PPO, and DPO for small open models?
+The main models are:
 
-## Repository Layout
+- `Qwen/Qwen2.5-0.5B-Instruct`
+- `Qwen/Qwen2.5-1.5B-Instruct`
 
-- `configs/`: experiment and model configuration files.
-- `data/`: local dataset cache and processed artifacts.
-- `docs/`: project planning notes and proposal-derived design decisions.
-- `notebooks/`: exploratory analysis and result inspection.
-- `reports/`: figures, tables, and final report assets.
-- `scripts/`: runnable training, evaluation, and data preparation entrypoints.
-- `src/grpo_reasoning/`: reusable project source code.
-- `tests/`: focused unit tests for data processing, rewards, and algorithm helpers.
+## Setup
 
-## Initial Milestones
-
-1. Build a supervised/evaluation baseline on GSM8K.
-2. Implement reward extraction for math answers.
-3. Implement GRPO training with configurable group size.
-4. Add a DPO baseline from synthetic GSM8K preference pairs.
-5. Add PPO as a toy or larger-GPU comparison if compute permits.
-6. Run controlled experiments and summarize stability, accuracy, and cost.
-
-## Quick Start
-
-Create an environment with `uv`:
-
-```bash
-uv sync --extra dev
-uv run python -m pytest
-```
-
-Install optional quantization dependencies when needed:
+Preferred `uv` setup:
 
 ```bash
 uv sync --extra dev --extra quantization
+uv run python -m pytest
 ```
 
-The standard `pip` path is also supported:
+Standard pip/venv setup:
 
 ```bash
-python -m pip install -e ".[dev]"
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e ".[dev,quantization]"
 python -m pytest
 ```
 
-Inspect a few GSM8K examples:
+Makefile commands default to `uv run python`. With a plain venv, use:
 
 ```bash
-uv run python scripts/inspect_gsm8k.py --split test --limit 3
+make PYTHON=python test
 ```
 
-Run a small baseline inference job:
+## Primary Entry Points
+
+Use Makefile targets rather than calling individual stage scripts directly.
+
+Full model groups:
 
 ```bash
-uv run python scripts/run_gsm8k_baseline.py \
-  --model Qwen/Qwen2.5-0.5B-Instruct \
-  --limit 10 \
-  --batch-size 1 \
-  --max-new-tokens 512 \
-  --torch-dtype float16 \
-  --output data/processed/gsm8k_baseline_smoke.jsonl \
-  --resume
+make qwen0_5b-dry-run
+make qwen0_5b-test
+make qwen0_5b-run
+make qwen0_5b-eval
+make qwen0_5b-all
+
+make qwen1_5b-dry-run
+make qwen1_5b-test
+make qwen1_5b-run
+make qwen1_5b-eval
+make qwen1_5b-all
 ```
 
-Or use the baseline launcher:
+Per-method targets:
 
 ```bash
-bash scripts/run_baseline_smoke.sh
+make dpo-1_5b-dry-run
+make dpo-1_5b-test
+make dpo-1_5b-run
+make dpo-1_5b-eval
+
+make grpo-1_5b-dry-run
+make grpo-1_5b-test
+make grpo-1_5b-run
+make grpo-1_5b-eval
+
+make ppo-1_5b-dry-run
+make ppo-1_5b-test
+make ppo-1_5b-run
+make ppo-1_5b-eval
 ```
 
-Launcher defaults can be overridden through environment variables:
+Replace `1_5b` with `0_5b` for the smaller model.
+
+## Output Layout
+
+All experiment artifacts are written under:
+
+```text
+experiments/<run_name>/
+  config.json
+  configs/
+  data/
+  logs/
+  metrics/
+  models/
+```
+
+Package results for download:
 
 ```bash
-LIMIT=100 MAX_NEW_TOKENS=512 bash scripts/run_baseline_smoke.sh
-BASELINE_LIMIT=10 BASELINE_MAX_NEW_TOKENS=512 bash scripts/run_pipeline_smoke.sh
+make package-results
 ```
 
-The shell launchers automatically use `uv run python` when `uv` is available. To
-force a specific interpreter, set `PYTHON_CMD`, for example:
-
-```bash
-PYTHON_CMD=python bash scripts/run_baseline_smoke.sh
-```
-
-The same flow is available through `make`:
-
-```bash
-make sync
-make baseline-smoke
-make baseline-100
-make evaluate-baseline
-```
-
-Makefile commands default to `uv run python`. Use standard `python` explicitly with:
-
-```bash
-make PYTHON=python baseline-smoke
-make PYTHON=python grpo-dry-run
-```
-
-Evaluate a JSONL prediction file:
-
-```bash
-uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
-```
-
-Each prediction record should include one prediction field, such as `completion`,
-`prediction`, `response`, or `generated_text`, and one answer field, such as
-`gold_answer`, `answer`, `target`, or `reference`.
-
-Run local tests:
-
-```bash
-uv run python -m pytest
-```
-
-## DPO Flow
-
-DPO uses synthetic preference pairs generated from GSM8K prompts. For each prompt,
-the base model samples multiple completions; the existing GSM8K rule reward chooses
-the highest-scoring completion as `chosen` and the lowest-scoring completion as
-`rejected`.
-
-```bash
-make dpo-pairs-dry-run
-make dpo-pairs-small
-make dpo-train-dry-run
-make dpo-train-small
-```
-
-For a very small end-to-end DPO smoke path:
-
-```bash
-make dpo-smoke
-```
-
-For QLoRA-style runs, install the optional quantization extras:
-
-```bash
-uv sync --extra dev --extra quantization
-# or
-python -m pip install -e ".[dev,quantization]"
-```
-
-## GRPO Flow
-
-The default smoke config is intentionally tiny and uses `beta=0.0` to avoid loading
-a reference model on small GPUs. A slightly larger 8GB-oriented config is available:
-
-```bash
-make grpo-lite-dry-run
-make grpo-lite
-```
-
-## Pipeline
-
-The dataset is downloaded automatically by Hugging Face `datasets` when a script
-first calls GSM8K. The repository intentionally does not commit dataset files,
-prediction JSONL files, checkpoints, or logs. Local artifacts are written under
-`data/processed/`, `outputs/`, `runs/`, or `wandb/`.
-
-Run a minimal end-to-end smoke flow:
-
-```bash
-bash scripts/run_pipeline_smoke.sh
-```
-
-Or run individual stages:
-
-```bash
-make inspect-gsm8k
-make baseline-smoke
-uv run python scripts/evaluate_predictions.py data/processed/gsm8k_baseline_smoke.jsonl
-make dpo-pairs-dry-run
-make dpo-train-dry-run
-make grpo-dry-run
-make grpo-smoke
-```
-
-See `docs/pipeline.md` for the full project flow and module responsibilities.
+See [docs/experiment_design.md](docs/experiment_design.md) for the experiment
+matrix and metrics, and [docs/server_setup.md](docs/server_setup.md) for RunPod
+setup notes.

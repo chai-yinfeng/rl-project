@@ -107,6 +107,7 @@ def build_dpo_config(config: dict[str, Any]):
         "save_steps",
         "save_strategy",
         "logging_steps",
+        "logging_dir",
         "report_to",
         "remove_unused_columns",
         "model_init_kwargs",

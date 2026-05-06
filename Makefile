@@ -1,13 +1,22 @@
-.PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k baseline-smoke baseline-100 evaluate-baseline dpo-pairs-dry-run dpo-pairs-small dpo-train-dry-run dpo-train-small dpo-smoke grpo-dry-run grpo-lite-dry-run grpo-smoke grpo-lite pipeline-smoke
+.PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k package-results \
+	qwen0_5b-dry-run qwen0_5b-test qwen0_5b-run qwen0_5b-eval qwen0_5b-all \
+	qwen1_5b-dry-run qwen1_5b-test qwen1_5b-run qwen1_5b-eval qwen1_5b-all \
+	dpo-0_5b-dry-run dpo-0_5b-test dpo-0_5b-run dpo-0_5b-eval \
+	grpo-0_5b-dry-run grpo-0_5b-test grpo-0_5b-run grpo-0_5b-eval \
+	ppo-0_5b-dry-run ppo-0_5b-test ppo-0_5b-run ppo-0_5b-eval \
+	dpo-1_5b-dry-run dpo-1_5b-test dpo-1_5b-run dpo-1_5b-eval \
+	grpo-1_5b-dry-run grpo-1_5b-test grpo-1_5b-run grpo-1_5b-eval \
+	ppo-1_5b-dry-run ppo-1_5b-test ppo-1_5b-run ppo-1_5b-eval
 
 UV ?= uv
 RUN ?= $(UV) run
 PYTHON ?= $(RUN) python
 
-BASELINE_OUTPUT ?= data/processed/gsm8k_baseline_qwen_0_5b_100.jsonl
-BASELINE_MODEL ?= Qwen/Qwen2.5-0.5B-Instruct
-DPO_PAIRS_OUTPUT ?= data/processed/gsm8k_dpo_pairs_qwen_0_5b_train200_k4.jsonl
-DPO_MODEL ?= $(BASELINE_MODEL)
+QWEN0_TEST_CONFIG := configs/experiments/gsm8k_qwen0_5b_test.json
+QWEN0_FULL_CONFIG := configs/experiments/gsm8k_qwen0_5b_full.json
+QWEN1_TEST_CONFIG := configs/experiments/gsm8k_qwen1_5b_test.json
+QWEN1_FULL_CONFIG := configs/experiments/gsm8k_qwen1_5b_full.json
+RESULTS_DIR ?= experiments
 
 lock:
 	$(UV) lock
@@ -33,69 +42,107 @@ test:
 inspect-gsm8k:
 	$(PYTHON) scripts/inspect_gsm8k.py --split test --limit 3
 
-baseline-smoke:
-	$(PYTHON) scripts/run_gsm8k_baseline.py \
-		--model $(BASELINE_MODEL) \
-		--limit 10 \
-		--batch-size 1 \
-		--max-new-tokens 512 \
-		--torch-dtype float16 \
-		--output data/processed/gsm8k_baseline_smoke.jsonl \
-		--resume
+package-results:
+	bash scripts/package_results.sh $(RESULTS_DIR)
 
-baseline-100:
-	$(PYTHON) scripts/run_gsm8k_baseline.py \
-		--model $(BASELINE_MODEL) \
-		--limit 100 \
-		--batch-size 1 \
-		--max-new-tokens 256 \
-		--torch-dtype float16 \
-		--output $(BASELINE_OUTPUT) \
-		--resume
+qwen0_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage all --dry-run
 
-evaluate-baseline:
-	$(PYTHON) scripts/evaluate_predictions.py $(BASELINE_OUTPUT)
+qwen0_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_TEST_CONFIG) --stage all
 
-dpo-pairs-dry-run:
-	$(PYTHON) scripts/build_dpo_pairs.py \
-		--model $(DPO_MODEL) \
-		--limit 200 \
-		--num-completions 4 \
-		--output $(DPO_PAIRS_OUTPUT) \
-		--dry-run
+qwen0_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage run
 
-dpo-pairs-small:
-	$(PYTHON) scripts/build_dpo_pairs.py \
-		--model $(DPO_MODEL) \
-		--limit 200 \
-		--num-completions 4 \
-		--max-new-tokens 128 \
-		--temperature 0.7 \
-		--top-p 0.95 \
-		--torch-dtype float16 \
-		--output $(DPO_PAIRS_OUTPUT) \
-		--resume
+qwen0_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage eval
 
-dpo-train-dry-run:
-	$(PYTHON) scripts/run_dpo_train.py --dry-run
+qwen0_5b-all:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage all
 
-dpo-train-small:
-	$(PYTHON) scripts/run_dpo_train.py
+qwen1_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage all --dry-run
 
-dpo-smoke:
-	bash scripts/run_dpo_smoke.sh
+qwen1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage all
 
-grpo-dry-run:
-	$(PYTHON) scripts/run_grpo_smoke.py --dry-run
+qwen1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage run
 
-grpo-lite-dry-run:
-	$(PYTHON) scripts/run_grpo_smoke.py --config configs/train/grpo_lite_8gb.json --dry-run
+qwen1_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage eval
 
-grpo-smoke:
-	$(PYTHON) scripts/run_grpo_smoke.py --max-train-examples 8 --max-steps 1
+qwen1_5b-all:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage all
 
-grpo-lite:
-	$(PYTHON) scripts/run_grpo_smoke.py --config configs/train/grpo_lite_8gb.json
+dpo-0_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage dpo --dry-run
 
-pipeline-smoke:
-	bash scripts/run_pipeline_smoke.sh
+dpo-0_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_TEST_CONFIG) --stage dpo
+
+dpo-0_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage dpo-run
+
+dpo-0_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage dpo-eval
+
+grpo-0_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage grpo --dry-run
+
+grpo-0_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_TEST_CONFIG) --stage grpo
+
+grpo-0_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage grpo-run
+
+grpo-0_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage grpo-eval
+
+ppo-0_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage ppo --dry-run
+
+ppo-0_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_TEST_CONFIG) --stage ppo
+
+ppo-0_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage ppo-run
+
+ppo-0_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage ppo-eval
+
+dpo-1_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage dpo --dry-run
+
+dpo-1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage dpo
+
+dpo-1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage dpo-run
+
+dpo-1_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage dpo-eval
+
+grpo-1_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo --dry-run
+
+grpo-1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage grpo
+
+grpo-1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo-run
+
+grpo-1_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo-eval
+
+ppo-1_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage ppo --dry-run
+
+ppo-1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage ppo
+
+ppo-1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage ppo-run
+
+ppo-1_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage ppo-eval

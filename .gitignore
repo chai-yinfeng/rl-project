@@ -15,6 +15,7 @@ venv/
 data/raw/*
 data/processed/*
 outputs/
+/experiments/
 checkpoints/
 runs/
 wandb/
@@ -30,4 +31,3 @@ wandb/
 .DS_Store
 .idea/
 .vscode/
-

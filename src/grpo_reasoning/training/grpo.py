@@ -66,6 +66,7 @@ def build_grpo_config(config: dict[str, Any]):
         "gradient_checkpointing",
         "save_steps",
         "logging_steps",
+        "logging_dir",
         "report_to",
         "model_init_kwargs",
     }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a minimal GRPO smoke training job on GSM8K."""
+"""Run compact PPO-style rule-reward training on GSM8K."""
 
 from __future__ import annotations
 
@@ -8,20 +8,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.training.grpo import (
-    build_grpo_config,
-    build_gsm8k_grpo_dataset,
-    gsm8k_grpo_reward_func,
-)
+from grpo_reasoning.training.ppo import build_ppo_dataset, train_ppo_style
 from grpo_reasoning.training.runtime import set_seed
-
-
-DEFAULT_CONFIG = Path("configs/train/grpo_smoke.json")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--model", default=None)
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--max-train-examples", type=int, default=None)
@@ -49,7 +42,7 @@ def main() -> None:
         config["output_dir"] = args.output_dir
 
     set_seed(int(config.get("seed", 42)))
-    train_dataset = build_gsm8k_grpo_dataset(
+    dataset = build_ppo_dataset(
         split=config.get("split", "train"),
         subset=config.get("subset", "main"),
         max_examples=config.get("max_train_examples"),
@@ -59,11 +52,14 @@ def main() -> None:
         print(
             json.dumps(
                 {
+                    "method": "ppo_style",
                     "model_name_or_path": config["model_name_or_path"],
-                    "train_examples": len(train_dataset),
+                    "train_examples": len(dataset),
                     "output_dir": config["output_dir"],
                     "max_steps": config["max_steps"],
-                    "num_generations": config["num_generations"],
+                    "kl_beta": config.get("kl_beta", 0.0),
+                    "use_peft": config.get("use_peft", True),
+                    "load_in_4bit": config.get("load_in_4bit", False),
                 },
                 indent=2,
                 sort_keys=True,
@@ -71,27 +67,8 @@ def main() -> None:
         )
         return
 
-    try:
-        from transformers import AutoTokenizer
-        from trl import GRPOTrainer
-    except ImportError as exc:
-        raise RuntimeError("Install transformers and trl before running GRPO training.") from exc
-
-    tokenizer = AutoTokenizer.from_pretrained(config["model_name_or_path"])
-    tokenizer.padding_side = "left"
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    grpo_config = build_grpo_config(config)
-    trainer = GRPOTrainer(
-        model=config["model_name_or_path"],
-        reward_funcs=gsm8k_grpo_reward_func,
-        args=grpo_config,
-        train_dataset=train_dataset,
-        processing_class=tokenizer,
-    )
-    trainer.train()
-    trainer.save_model(config["output_dir"])
+    summary = train_ppo_style(config)
+    print(json.dumps(summary, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""Unified experiment launcher for baseline, DPO, GRPO, and PPO-style runs."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+from grpo_reasoning.experiments import prepare_run_dir, timestamp, write_json
+
+
+STAGE_ORDER = [
+    "baseline",
+    "dpo-pairs",
+    "dpo-train",
+    "dpo-eval",
+    "grpo-train",
+    "grpo-eval",
+    "ppo-train",
+    "ppo-eval",
+]
+
+STAGE_GROUPS = {
+    "all": STAGE_ORDER,
+    "run": ["baseline", "dpo-pairs", "dpo-train", "grpo-train", "ppo-train"],
+    "eval": ["baseline", "dpo-eval", "grpo-eval", "ppo-eval"],
+    "dpo": ["dpo-pairs", "dpo-train", "dpo-eval"],
+    "dpo-run": ["dpo-pairs", "dpo-train"],
+    "grpo": ["grpo-train", "grpo-eval"],
+    "grpo-run": ["grpo-train"],
+    "ppo": ["ppo-train", "ppo-eval"],
+    "ppo-run": ["ppo-train"],
+}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--stage", choices=[*STAGE_ORDER, *STAGE_GROUPS], default="all")
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+def load_config(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def run_command(command: list[str], *, dry_run: bool) -> None:
+    print(" ".join(command), flush=True)
+    if not dry_run:
+        subprocess.run(command, check=True)
+
+
+def write_stage_config(run_dir: Path, name: str, config: dict[str, Any]) -> Path:
+    path = run_dir / "configs" / f"{name}.json"
+    write_json(path, config)
+    return path
+
+
+def build_eval_command(
+    *,
+    model: str,
+    adapter: str | None,
+    eval_config: dict[str, Any],
+    output: Path,
+    metrics_output: Path,
+) -> list[str]:
+    command = [
+        sys.executable,
+        "scripts/evaluate_model.py",
+        "--model",
+        model,
+        "--split",
+        eval_config.get("split", "test"),
+        "--subset",
+        eval_config.get("subset", "main"),
+        "--limit",
+        str(eval_config.get("limit", 100)),
+        "--batch-size",
+        str(eval_config.get("batch_size", 1)),
+        "--max-new-tokens",
+        str(eval_config.get("max_new_tokens", 256)),
+        "--temperature",
+        str(eval_config.get("temperature", 0.0)),
+        "--top-p",
+        str(eval_config.get("top_p", 0.95)),
+        "--torch-dtype",
+        eval_config.get("torch_dtype", "float16"),
+        "--output",
+        str(output),
+        "--metrics-output",
+        str(metrics_output),
+        "--resume",
+    ]
+    if adapter:
+        command.extend(["--adapter", adapter])
+    if eval_config.get("load_in_4bit", False):
+        command.append("--load-in-4bit")
+    return command
+
+
+def main() -> None:
+    args = parse_args()
+    config = load_config(args.config)
+    run_name = config.get("run_name") or f"{Path(args.config).stem}_{timestamp()}"
+    output_root = Path(config.get("output_root", "experiments"))
+    run_dir = prepare_run_dir(output_root, run_name, config)
+
+    model = config["model_name_or_path"]
+    eval_config = config.get("eval", {})
+    stages = STAGE_GROUPS.get(args.stage, [args.stage])
+
+    dpo_pairs_path = run_dir / "data" / "dpo_pairs.jsonl"
+    dpo_model_dir = run_dir / "models" / "dpo"
+    grpo_model_dir = run_dir / "models" / "grpo"
+    ppo_model_dir = run_dir / "models" / "ppo"
+
+    for stage in stages:
+        if stage == "baseline":
+            run_command(
+                build_eval_command(
+                    model=model,
+                    adapter=None,
+                    eval_config=eval_config,
+                    output=run_dir / "data" / "baseline_predictions.jsonl",
+                    metrics_output=run_dir / "metrics" / "baseline.json",
+                ),
+                dry_run=args.dry_run,
+            )
+
+        elif stage == "dpo-pairs":
+            dpo_pair_config = config.get("dpo_pairs", {})
+            command = [
+                sys.executable,
+                "scripts/build_dpo_pairs.py",
+                "--model",
+                model,
+                "--split",
+                dpo_pair_config.get("split", "train"),
+                "--subset",
+                dpo_pair_config.get("subset", "main"),
+                "--limit",
+                str(dpo_pair_config.get("limit", 200)),
+                "--num-completions",
+                str(dpo_pair_config.get("num_completions", 4)),
+                "--max-new-tokens",
+                str(dpo_pair_config.get("max_new_tokens", 128)),
+                "--temperature",
+                str(dpo_pair_config.get("temperature", 0.7)),
+                "--top-p",
+                str(dpo_pair_config.get("top_p", 0.95)),
+                "--torch-dtype",
+                dpo_pair_config.get("torch_dtype", "float16"),
+                "--output",
+                str(dpo_pairs_path),
+                "--resume",
+            ]
+            if dpo_pair_config.get("load_in_4bit", False):
+                command.append("--load-in-4bit")
+            run_command(command, dry_run=args.dry_run)
+
+        elif stage == "dpo-train":
+            dpo_config = dict(config.get("dpo_train", {}))
+            dpo_config.setdefault("model_name_or_path", model)
+            dpo_config["train_file"] = str(dpo_pairs_path)
+            dpo_config["output_dir"] = str(dpo_model_dir)
+            dpo_config.setdefault("logging_dir", str(run_dir / "logs" / "dpo"))
+            dpo_config_path = write_stage_config(run_dir, "dpo_train", dpo_config)
+            command = [sys.executable, "scripts/run_dpo_train.py", "--config", str(dpo_config_path)]
+            if args.dry_run:
+                command.append("--dry-run")
+            run_command(command, dry_run=False)
+
+        elif stage == "dpo-eval":
+            run_command(
+                build_eval_command(
+                    model=model,
+                    adapter=str(dpo_model_dir),
+                    eval_config=eval_config,
+                    output=run_dir / "data" / "dpo_predictions.jsonl",
+                    metrics_output=run_dir / "metrics" / "dpo.json",
+                ),
+                dry_run=args.dry_run,
+            )
+
+        elif stage == "grpo-train":
+            grpo_config = dict(config.get("grpo_train", {}))
+            grpo_config.setdefault("model_name_or_path", model)
+            grpo_config["output_dir"] = str(grpo_model_dir)
+            grpo_config.setdefault("logging_dir", str(run_dir / "logs" / "grpo"))
+            grpo_config_path = write_stage_config(run_dir, "grpo_train", grpo_config)
+            command = [sys.executable, "scripts/run_grpo_train.py", "--config", str(grpo_config_path)]
+            if args.dry_run:
+                command.append("--dry-run")
+            run_command(command, dry_run=False)
+
+        elif stage == "grpo-eval":
+            run_command(
+                build_eval_command(
+                    model=str(grpo_model_dir),
+                    adapter=None,
+                    eval_config=eval_config,
+                    output=run_dir / "data" / "grpo_predictions.jsonl",
+                    metrics_output=run_dir / "metrics" / "grpo.json",
+                ),
+                dry_run=args.dry_run,
+            )
+
+        elif stage == "ppo-train":
+            ppo_config = dict(config.get("ppo_train", {}))
+            ppo_config.setdefault("model_name_or_path", model)
+            ppo_config["output_dir"] = str(ppo_model_dir)
+            ppo_config_path = write_stage_config(run_dir, "ppo_train", ppo_config)
+            command = [sys.executable, "scripts/run_ppo_train.py", "--config", str(ppo_config_path)]
+            if args.dry_run:
+                command.append("--dry-run")
+            run_command(command, dry_run=False)
+
+        elif stage == "ppo-eval":
+            run_command(
+                build_eval_command(
+                    model=model,
+                    adapter=str(ppo_model_dir),
+                    eval_config=eval_config,
+                    output=run_dir / "data" / "ppo_predictions.jsonl",
+                    metrics_output=run_dir / "metrics" / "ppo.json",
+                ),
+                dry_run=args.dry_run,
+            )
+
+
+if __name__ == "__main__":
+    main()
