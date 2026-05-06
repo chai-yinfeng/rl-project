@@ -106,3 +106,10 @@ make package-results
 See [docs/experiment_design.md](docs/experiment_design.md) for the experiment
 matrix and metrics, and [docs/server_setup.md](docs/server_setup.md) for RunPod
 setup notes.
+
+## Source Layout
+
+The package is `reasoning_post_training`. Shared task utilities live in
+`datasets/`, `evaluation/`, `rewards/`, and `models/`; algorithm-specific code
+lives in `methods/baseline.py`, `methods/dpo.py`, `methods/grpo.py`, and
+`methods/ppo.py`. The `scripts/` directory is only a CLI layer.

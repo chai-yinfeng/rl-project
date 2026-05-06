@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 
-from grpo_reasoning.data.gsm8k import load_gsm8k_split
+from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
 
 
 def main() -> None:

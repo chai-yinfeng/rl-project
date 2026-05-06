@@ -17,6 +17,32 @@ The stage scripts are implementation details:
 - `scripts/evaluate_model.py`
 - `scripts/package_results.sh`
 
+## Source Layout
+
+The Python package is named `reasoning_post_training` to reflect the full project
+scope rather than one algorithm.
+
+```text
+src/reasoning_post_training/
+  datasets/       # GSM8K loading and prompt formatting
+  evaluation/     # answer extraction and exact-match metrics
+  rewards/        # reusable rule rewards
+  models/         # model/tokenizer loading helpers
+  methods/        # baseline, DPO, GRPO, PPO-style method code
+  experiments.py  # run directory, JSON, and CUDA metric helpers
+  runtime.py      # reproducibility helpers
+```
+
+Method code is split by algorithm:
+
+```text
+methods/baseline.py       # inference and model evaluation
+methods/dpo.py            # pair scoring, pair loading, DPOConfig adapter
+methods/grpo.py           # GRPO dataset/reward/config adapter
+methods/grpo_algorithm.py # standalone group-relative advantage utility
+methods/ppo.py            # compact PPO-style rule-reward trainer
+```
+
 ## Stages
 
 The unified launcher supports these primitive stages:

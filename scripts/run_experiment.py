@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.experiments import prepare_run_dir, timestamp, write_json
+from reasoning_post_training.experiments import prepare_run_dir, timestamp, write_json
 
 
 STAGE_ORDER = [

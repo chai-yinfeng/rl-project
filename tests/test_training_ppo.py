@@ -1,4 +1,4 @@
-from grpo_reasoning.training.ppo import ppo_rule_reward
+from reasoning_post_training.methods.ppo import ppo_rule_reward
 
 
 def test_ppo_rule_reward_matches_gsm8k_rule_reward_shape():

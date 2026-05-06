@@ -5,13 +5,13 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from grpo_reasoning.evaluation.answer_extraction import extract_predicted_answer
-from grpo_reasoning.rewards.gsm8k_reward import correctness_reward, format_reward
+from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
+from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
 
 
 def build_gsm8k_grpo_dataset(split: str, subset: str, max_examples: int | None = None):
     """Load GSM8K and keep the columns expected by TRL's GRPOTrainer."""
-    from grpo_reasoning.data.gsm8k import load_gsm8k_split
+    from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
 
     dataset = load_gsm8k_split(split=split, subset=subset)
     keep_columns = {"prompt", "gold_answer", "question", "answer"}

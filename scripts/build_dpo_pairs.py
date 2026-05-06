@@ -10,10 +10,10 @@ from typing import Any
 
 from tqdm import tqdm
 
-from grpo_reasoning.data.gsm8k import load_gsm8k_split
-from grpo_reasoning.models.loading import load_causal_lm_and_tokenizer
-from grpo_reasoning.training.dpo import build_gold_chosen_pair, choose_preference_pair, score_gsm8k_completion
-from grpo_reasoning.training.runtime import set_seed
+from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
+from reasoning_post_training.models.loading import load_causal_lm_and_tokenizer
+from reasoning_post_training.methods.dpo import build_gold_chosen_pair, choose_preference_pair, score_gsm8k_completion
+from reasoning_post_training.runtime import set_seed
 
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"

@@ -7,8 +7,8 @@ import inspect
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.evaluation.answer_extraction import extract_predicted_answer
-from grpo_reasoning.rewards.gsm8k_reward import correctness_reward, format_reward
+from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
+from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
 
 
 def score_gsm8k_completion(completion: str, gold_answer: str | int | float | None) -> float:

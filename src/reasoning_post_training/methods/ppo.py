@@ -14,13 +14,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.experiments import append_jsonl, cuda_memory_summary, write_json
-from grpo_reasoning.rewards.gsm8k_reward import correctness_reward, format_reward
-from grpo_reasoning.evaluation.answer_extraction import extract_predicted_answer
+from reasoning_post_training.experiments import append_jsonl, cuda_memory_summary, write_json
+from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
+from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
 
 
 def build_ppo_dataset(split: str, subset: str, max_examples: int | None = None):
-    from grpo_reasoning.data.gsm8k import load_gsm8k_split
+    from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
 
     dataset = load_gsm8k_split(split=split, subset=subset)
     if max_examples is not None:
@@ -54,7 +54,7 @@ def _load_model(model_name_or_path: str, config: dict[str, Any], *, trainable: b
 
     model_kwargs: dict[str, Any] = {
         "device_map": config.get("device_map", "auto"),
-        "torch_dtype": _resolve_torch_dtype(config.get("torch_dtype", "float16")),
+        "dtype": _resolve_torch_dtype(config.get("torch_dtype", "float16")),
         "low_cpu_mem_usage": True,
     }
     if config.get("load_in_4bit", False):

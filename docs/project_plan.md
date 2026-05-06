@@ -26,13 +26,12 @@ docs/
 notebooks/
 reports/
 scripts/
-src/grpo_reasoning/
-  algorithms/
-  data/
+src/reasoning_post_training/
+  datasets/
   evaluation/
+  methods/
   models/
   rewards/
-  training/
   utils/
 tests/
 ```

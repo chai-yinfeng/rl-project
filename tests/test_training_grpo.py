@@ -1,4 +1,4 @@
-from grpo_reasoning.training.grpo import gsm8k_grpo_reward_func
+from reasoning_post_training.methods.grpo import gsm8k_grpo_reward_func
 
 
 def test_gsm8k_grpo_reward_func_rewards_correct_final_answer():

@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.experiments import write_json
-from grpo_reasoning.training.dpo import build_dpo_config, load_dpo_jsonl
-from grpo_reasoning.training.runtime import set_seed
+from reasoning_post_training.experiments import write_json
+from reasoning_post_training.methods.dpo import build_dpo_config, load_dpo_jsonl
+from reasoning_post_training.runtime import set_seed
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,6 +1,6 @@
 import pytest
 
-from grpo_reasoning.algorithms.grpo import compute_group_relative_advantages
+from reasoning_post_training.methods.grpo_algorithm import compute_group_relative_advantages
 
 
 def test_compute_group_relative_advantages_normalizes_within_group():

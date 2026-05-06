@@ -8,13 +8,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.experiments import write_json
-from grpo_reasoning.training.grpo import (
+from reasoning_post_training.experiments import write_json
+from reasoning_post_training.methods.grpo import (
     build_grpo_config,
     build_gsm8k_grpo_dataset,
     gsm8k_grpo_reward_func,
 )
-from grpo_reasoning.training.runtime import set_seed
+from reasoning_post_training.runtime import set_seed
 
 
 def parse_args() -> argparse.Namespace:

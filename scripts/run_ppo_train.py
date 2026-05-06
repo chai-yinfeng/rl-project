@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from grpo_reasoning.training.ppo import build_ppo_dataset, train_ppo_style
-from grpo_reasoning.training.runtime import set_seed
+from reasoning_post_training.methods.ppo import build_ppo_dataset, train_ppo_style
+from reasoning_post_training.runtime import set_seed
 
 
 def parse_args() -> argparse.Namespace:

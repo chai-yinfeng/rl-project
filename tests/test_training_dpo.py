@@ -1,4 +1,4 @@
-from grpo_reasoning.training.dpo import (
+from reasoning_post_training.methods.dpo import (
     build_gold_chosen_pair,
     choose_preference_pair,
     score_gsm8k_completion,

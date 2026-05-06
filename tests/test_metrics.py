@@ -1,4 +1,4 @@
-from grpo_reasoning.evaluation.metrics import evaluate_completions
+from reasoning_post_training.evaluation.metrics import evaluate_completions
 
 
 def test_evaluate_completions_counts_accuracy_and_invalid_rate():

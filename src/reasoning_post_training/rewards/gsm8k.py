@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from grpo_reasoning.evaluation.answer_extraction import (
+from reasoning_post_training.evaluation.answer_extraction import (
     extract_predicted_answer,
     normalize_numeric_answer,
 )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from grpo_reasoning.evaluation.answer_extraction import extract_gsm8k_gold_answer
+from reasoning_post_training.evaluation.answer_extraction import extract_gsm8k_gold_answer
 
 
 DEFAULT_SYSTEM_PROMPT = (
