@@ -1,6 +1,6 @@
 import pytest
 
-from reasoning_post_training.methods.grpo_algorithm import compute_group_relative_advantages
+from reasoning_post_training.methods.grpo import compute_group_relative_advantages
 
 
 def test_compute_group_relative_advantages_normalizes_within_group():
@@ -18,4 +18,3 @@ def test_compute_group_relative_advantages_returns_zero_for_tied_group():
 def test_compute_group_relative_advantages_rejects_incomplete_group():
     with pytest.raises(ValueError, match="divisible"):
         compute_group_relative_advantages([1.0, 2.0, 3.0], group_size=2)
-

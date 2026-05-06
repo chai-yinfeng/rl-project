@@ -38,8 +38,7 @@ Method code is split by algorithm:
 ```text
 methods/baseline.py       # inference and model evaluation
 methods/dpo.py            # pair scoring, pair loading, DPOConfig adapter
-methods/grpo.py           # GRPO dataset/reward/config adapter
-methods/grpo_algorithm.py # standalone group-relative advantage utility
+methods/grpo.py           # GRPO advantage utility, dataset/reward/config adapter
 methods/ppo.py            # compact PPO-style rule-reward trainer
 ```
 
