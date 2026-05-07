@@ -204,8 +204,8 @@ def main() -> None:
         elif stage == "grpo-eval":
             run_command(
                 build_eval_command(
-                    model=str(grpo_model_dir),
-                    adapter=None,
+                    model=model,
+                    adapter=str(grpo_model_dir),
                     eval_config=eval_config,
                     output=run_dir / "data" / "grpo_predictions.jsonl",
                     metrics_output=run_dir / "metrics" / "grpo.json",

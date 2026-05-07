@@ -33,6 +33,27 @@ def load_config(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
+def build_peft_config(config: dict[str, Any]):
+    if not config.get("use_peft", False):
+        return None
+
+    try:
+        from peft import LoraConfig
+    except ImportError as exc:
+        raise RuntimeError("Install peft before running GRPO with use_peft=true.") from exc
+
+    peft_kwargs = {
+        "r": config.get("lora_r", 16),
+        "lora_alpha": config.get("lora_alpha", 32),
+        "lora_dropout": config.get("lora_dropout", 0.05),
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+    }
+    if config.get("lora_target_modules"):
+        peft_kwargs["target_modules"] = config["lora_target_modules"]
+    return LoraConfig(**peft_kwargs)
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -62,6 +83,7 @@ def main() -> None:
                     "output_dir": config["output_dir"],
                     "max_steps": config["max_steps"],
                     "num_generations": config["num_generations"],
+                    "use_peft": config.get("use_peft", False),
                 },
                 indent=2,
                 sort_keys=True,
@@ -81,12 +103,14 @@ def main() -> None:
         tokenizer.pad_token = tokenizer.eos_token
 
     grpo_config = build_grpo_config(config)
+    peft_config = build_peft_config(config)
     trainer = GRPOTrainer(
         model=config["model_name_or_path"],
         reward_funcs=gsm8k_grpo_reward_func,
         args=grpo_config,
         train_dataset=train_dataset,
         processing_class=tokenizer,
+        peft_config=peft_config,
     )
     train_result = trainer.train()
     trainer.save_model(config["output_dir"])
