@@ -1,14 +1,8 @@
-"""A compact PPO-style trainer for rule-reward GSM8K experiments.
-
-This is intentionally small and transparent. It uses sampled rollouts, frozen
-old-policy log probabilities, optional reference-model KL control, and a clipped
-policy-gradient objective. It does not train a learned value model; advantages are
-batch-normalized rewards. That makes it useful as a compute-aware PPO-style
-engineering baseline for the course project.
-"""
+"""PPO training helpers for rule-reward GSM8K experiments."""
 
 from __future__ import annotations
 
+import inspect
 import math
 import time
 from pathlib import Path
@@ -82,6 +76,242 @@ def _load_model(model_name_or_path: str, config: dict[str, Any], *, trainable: b
     elif hasattr(model, "enable_input_require_grads"):
         model.enable_input_require_grads()
     return model
+
+
+def build_peft_config(config: dict[str, Any]):
+    if not config.get("use_peft", True):
+        return None
+
+    try:
+        from peft import LoraConfig
+    except ImportError as exc:
+        raise RuntimeError("Install peft before running PPO with use_peft=true.") from exc
+
+    peft_kwargs = {
+        "r": config.get("lora_r", 16),
+        "lora_alpha": config.get("lora_alpha", 32),
+        "lora_dropout": config.get("lora_dropout", 0.05),
+        "bias": "none",
+        "task_type": "CAUSAL_LM",
+    }
+    if config.get("lora_target_modules"):
+        peft_kwargs["target_modules"] = config["lora_target_modules"]
+    return LoraConfig(**peft_kwargs)
+
+
+def build_ppo_config(config: dict[str, Any]):
+    try:
+        from trl.experimental.ppo import PPOConfig
+    except ImportError:
+        try:
+            from trl import PPOConfig
+        except ImportError as exc:
+            raise RuntimeError("Install trl before running PPO training.") from exc
+
+    kwargs = dict(config)
+    kwargs.setdefault("sft_model_path", config["model_name_or_path"])
+    kwargs.setdefault("reward_model_path", config.get("value_model_name_or_path", config["model_name_or_path"]))
+    if "response_length" not in kwargs and "max_new_tokens" in kwargs:
+        kwargs["response_length"] = kwargs["max_new_tokens"]
+    if "kl_coef" not in kwargs and "kl_beta" in kwargs:
+        kwargs["kl_coef"] = kwargs["kl_beta"]
+    if "cliprange" not in kwargs and "clip_range" in kwargs:
+        kwargs["cliprange"] = kwargs["clip_range"]
+    if "total_episodes" not in kwargs and int(kwargs.get("max_steps", -1)) > 0:
+        kwargs["total_episodes"] = (
+            int(kwargs["max_steps"])
+            * int(kwargs.get("per_device_train_batch_size", 1))
+            * int(kwargs.get("gradient_accumulation_steps", 1))
+        )
+
+    allowed_keys = set(inspect.signature(PPOConfig.__init__).parameters)
+    return PPOConfig(**{key: value for key, value in kwargs.items() if key in allowed_keys})
+
+
+class _RuleRewardBackbone:
+    def __init__(self, owner: "RuleRewardModel") -> None:
+        self.owner = owner
+
+    def __call__(self, input_ids, attention_mask=None, **_: Any):
+        import torch
+        from transformers.utils import ModelOutput
+
+        self.owner.last_input_ids = input_ids.detach()
+        hidden_states = torch.zeros(
+            (*input_ids.shape, 1),
+            dtype=torch.float32,
+            device=input_ids.device,
+        )
+        return ModelOutput(hidden_states=(hidden_states,))
+
+
+class RuleRewardModel:
+    """Minimal TRL reward-model adapter backed by the GSM8K rule reward."""
+
+    base_model_prefix = "backbone"
+
+    def __init__(self, tokenizer, gold_by_question: dict[str, str | None]) -> None:
+        self.tokenizer = tokenizer
+        self.gold_by_question = gold_by_question
+        self.backbone = _RuleRewardBackbone(self)
+        self.last_input_ids = None
+
+    def eval(self):
+        return self
+
+    def train(self, mode: bool = True):
+        return self
+
+    def to(self, *args, **kwargs):
+        return self
+
+    def parameters(self):
+        return iter(())
+
+    def named_parameters(self, *args, **kwargs):
+        return iter(())
+
+    def modules(self):
+        return iter((self,))
+
+    def state_dict(self, *args, **kwargs):
+        return {}
+
+    def _extract_question_and_completion(self, text: str) -> tuple[str | None, str]:
+        question = None
+        if "Problem:\n" in text and "\n\nSolution:" in text:
+            question = text.split("Problem:\n", 1)[1].split("\n\nSolution:", 1)[0].strip()
+        completion = text.split("\n\nSolution:", 1)[-1] if "\n\nSolution:" in text else text
+        return question, completion.strip()
+
+    def score(self, hidden_states):
+        import torch
+
+        if self.last_input_ids is None:
+            raise RuntimeError("RuleRewardModel.score called before backbone forward.")
+
+        rewards: list[float] = []
+        for row in self.last_input_ids:
+            ids = [int(token_id) for token_id in row.tolist() if int(token_id) != self.tokenizer.pad_token_id]
+            text = self.tokenizer.decode(ids, skip_special_tokens=True)
+            question, completion = self._extract_question_and_completion(text)
+            gold = self.gold_by_question.get(question) if question is not None else None
+            rewards.append(ppo_rule_reward(completion, gold))
+
+        reward_tensor = torch.tensor(rewards, dtype=hidden_states.dtype, device=hidden_states.device)
+        return reward_tensor[:, None, None].expand(-1, hidden_states.shape[1], 1)
+
+
+def _load_value_model(model_name_or_path: str, config: dict[str, Any]):
+    from transformers import AutoModelForSequenceClassification
+
+    model_kwargs: dict[str, Any] = {
+        "num_labels": 1,
+        "dtype": _resolve_torch_dtype(config.get("torch_dtype", "bfloat16")),
+        "low_cpu_mem_usage": True,
+    }
+    value_model = AutoModelForSequenceClassification.from_pretrained(model_name_or_path, **model_kwargs)
+    if config.get("pad_token_id") is not None:
+        value_model.config.pad_token_id = config["pad_token_id"]
+    if not config.get("train_value_backbone", False):
+        for parameter in value_model.parameters():
+            parameter.requires_grad_(False)
+        if hasattr(value_model, "score"):
+            for parameter in value_model.score.parameters():
+                parameter.requires_grad_(True)
+    return value_model
+
+
+def train_ppo_trl(config: dict[str, Any]) -> dict[str, Any]:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    try:
+        from trl.experimental.ppo import PPOTrainer
+    except ImportError:
+        try:
+            from trl import PPOTrainer
+        except ImportError as exc:
+            raise RuntimeError("Install trl before running PPO training.") from exc
+
+    model_name = config["model_name_or_path"]
+    output_dir = Path(config["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    config["pad_token_id"] = tokenizer.pad_token_id
+
+    raw_dataset = build_ppo_dataset(
+        split=config.get("split", "train"),
+        subset=config.get("subset", "main"),
+        max_examples=config.get("max_train_examples"),
+    )
+    gold_by_question = {
+        str(record["question"]).strip(): record["gold_answer"]
+        for record in raw_dataset
+    }
+
+    max_prompt_length = int(config.get("max_prompt_length", 512))
+
+    def tokenize_prompt(batch):
+        outputs = tokenizer(
+            batch["prompt"],
+            truncation=True,
+            max_length=max_prompt_length,
+            padding=False,
+        )
+        return {"input_ids": outputs["input_ids"]}
+
+    train_dataset = raw_dataset.map(
+        tokenize_prompt,
+        batched=True,
+        remove_columns=raw_dataset.column_names,
+    )
+
+    model_kwargs: dict[str, Any] = {
+        "dtype": _resolve_torch_dtype(config.get("torch_dtype", "bfloat16")),
+        "low_cpu_mem_usage": True,
+    }
+    policy = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+    policy.config.pad_token_id = tokenizer.pad_token_id
+    value_model = _load_value_model(config.get("value_model_name_or_path", model_name), config)
+    value_model.config.pad_token_id = tokenizer.pad_token_id
+    class TorchRuleRewardModel(RuleRewardModel, torch.nn.Module):
+        def __init__(self, tokenizer, gold_by_question):
+            torch.nn.Module.__init__(self)
+            RuleRewardModel.__init__(self, tokenizer, gold_by_question)
+
+    reward_model = TorchRuleRewardModel(tokenizer, gold_by_question)
+    ppo_config = build_ppo_config(config)
+    peft_config = build_peft_config(config)
+
+    trainer = PPOTrainer(
+        args=ppo_config,
+        processing_class=tokenizer,
+        model=policy,
+        ref_model=None if peft_config is not None else AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs),
+        reward_model=reward_model,
+        value_model=value_model,
+        train_dataset=train_dataset,
+        peft_config=peft_config,
+    )
+    train_result = trainer.train()
+    trainer.save_model(config["output_dir"])
+    metrics = getattr(train_result, "metrics", {}) or {}
+    summary = {
+        "method": "trl_ppo",
+        "model_name_or_path": model_name,
+        "output_dir": str(output_dir),
+        "total_episodes": int(getattr(ppo_config, "total_episodes", 0) or 0),
+        **{key: float(value) for key, value in metrics.items() if isinstance(value, int | float)},
+        **cuda_memory_summary(),
+    }
+    write_json(output_dir / "metrics" / "summary.json", summary)
+    if not torch.isfinite(torch.tensor(float(summary.get("total_episodes", 0)))):
+        raise RuntimeError("Invalid PPO summary.")
+    return summary
 
 
 def _sequence_logprobs(model, tokenizer, prompts: list[str], completions: list[str]):

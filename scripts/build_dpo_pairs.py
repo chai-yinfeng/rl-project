@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--num-completions", type=int, default=4)
+    parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--top-p", type=float, default=0.95)
@@ -58,8 +59,13 @@ def read_completed_indices(output_path: Path) -> set[int]:
     return completed
 
 
-def generate_completions(model, tokenizer, prompt: str, args: argparse.Namespace) -> list[str]:
-    inputs = tokenizer([prompt], return_tensors="pt", padding=True)
+def generate_completion_batches(
+    model,
+    tokenizer,
+    prompts: list[str],
+    args: argparse.Namespace,
+) -> list[list[str]]:
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True)
     device = next(model.parameters()).device
     inputs = {key: value.to(device) for key, value in inputs.items()}
 
@@ -74,9 +80,13 @@ def generate_completions(model, tokenizer, prompt: str, args: argparse.Namespace
     }
     outputs = model.generate(**inputs, **generation_kwargs)
     prompt_width = inputs["input_ids"].shape[1]
-    return [
+    completions = [
         tokenizer.decode(output[prompt_width:], skip_special_tokens=True).strip()
         for output in outputs
+    ]
+    return [
+        completions[start : start + args.num_completions]
+        for start in range(0, len(completions), args.num_completions)
     ]
 
 
@@ -86,6 +96,8 @@ def main() -> None:
         raise ValueError("--num-completions must be at least 2")
     if args.limit < 1:
         raise ValueError("--limit must be at least 1")
+    if args.batch_size < 1:
+        raise ValueError("--batch-size must be at least 1")
 
     set_seed(args.seed)
     dataset = load_gsm8k_split(split=args.split, subset=args.subset)
@@ -102,6 +114,7 @@ def main() -> None:
                     "split": args.split,
                     "candidate_examples": len(indices),
                     "pending_examples": len(pending_indices),
+                    "batch_size": args.batch_size,
                     "num_completions": args.num_completions,
                     "include_gold_chosen": args.include_gold_chosen,
                     "output": str(args.output),
@@ -125,38 +138,49 @@ def main() -> None:
     kept = 0
     skipped = 0
     with args.output.open("a", encoding="utf-8") as handle:
-        for example_index in tqdm(pending_indices):
-            record = dataset[example_index]
-            completions = generate_completions(model, tokenizer, record["prompt"], args)
-            if args.include_gold_chosen:
-                rejected = min(
-                    completions,
-                    key=lambda completion: score_gsm8k_completion(completion, record["gold_answer"]),
-                )
-                pair = build_gold_chosen_pair(rejected, record["answer"], record["gold_answer"])
-            else:
-                pair = choose_preference_pair(
-                    completions,
-                    record["gold_answer"],
-                    require_distinct_scores=not args.allow_ties,
-                )
-            if pair is None:
-                skipped += 1
-                continue
+        for batch_start in tqdm(range(0, len(pending_indices), args.batch_size)):
+            batch_indices = pending_indices[batch_start : batch_start + args.batch_size]
+            records = [dataset[example_index] for example_index in batch_indices]
+            prompt_completions = generate_completion_batches(
+                model,
+                tokenizer,
+                [record["prompt"] for record in records],
+                args,
+            )
+            for example_index, record, completions in zip(
+                batch_indices, records, prompt_completions, strict=True
+            ):
+                if args.include_gold_chosen:
+                    rejected = min(
+                        completions,
+                        key=lambda completion: score_gsm8k_completion(
+                            completion, record["gold_answer"]
+                        ),
+                    )
+                    pair = build_gold_chosen_pair(rejected, record["answer"], record["gold_answer"])
+                else:
+                    pair = choose_preference_pair(
+                        completions,
+                        record["gold_answer"],
+                        require_distinct_scores=not args.allow_ties,
+                    )
+                if pair is None:
+                    skipped += 1
+                    continue
 
-            output_record = {
-                "example_index": example_index,
-                "model": args.model,
-                "split": args.split,
-                "question": record["question"],
-                "prompt": record["prompt"],
-                "gold_answer": record["gold_answer"],
-                "answer": record["answer"],
-                **pair,
-            }
-            handle.write(json.dumps(output_record, ensure_ascii=False) + "\n")
-            handle.flush()
-            kept += 1
+                output_record = {
+                    "example_index": example_index,
+                    "model": args.model,
+                    "split": args.split,
+                    "question": record["question"],
+                    "prompt": record["prompt"],
+                    "gold_answer": record["gold_answer"],
+                    "answer": record["answer"],
+                    **pair,
+                }
+                handle.write(json.dumps(output_record, ensure_ascii=False) + "\n")
+                handle.flush()
+                kept += 1
 
     print(json.dumps({"kept_pairs": kept, "skipped_examples": skipped}, indent=2, sort_keys=True))
 

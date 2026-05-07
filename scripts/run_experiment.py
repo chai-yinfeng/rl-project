@@ -148,6 +148,8 @@ def main() -> None:
                 str(dpo_pair_config.get("limit", 200)),
                 "--num-completions",
                 str(dpo_pair_config.get("num_completions", 4)),
+                "--batch-size",
+                str(dpo_pair_config.get("batch_size", 1)),
                 "--max-new-tokens",
                 str(dpo_pair_config.get("max_new_tokens", 128)),
                 "--temperature",

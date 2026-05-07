@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run compact PPO-style rule-reward training on GSM8K."""
+"""Run TRL PPO rule-reward training on GSM8K."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from reasoning_post_training.methods.ppo import build_ppo_dataset, train_ppo_style
+from reasoning_post_training.methods.ppo import build_ppo_dataset, train_ppo_style, train_ppo_trl
 from reasoning_post_training.runtime import set_seed
 
 
@@ -52,12 +52,13 @@ def main() -> None:
         print(
             json.dumps(
                 {
-                    "method": "ppo_style",
+                    "method": "ppo",
+                    "trainer": config.get("trainer", "trl"),
                     "model_name_or_path": config["model_name_or_path"],
                     "train_examples": len(dataset),
                     "output_dir": config["output_dir"],
                     "max_steps": config["max_steps"],
-                    "kl_beta": config.get("kl_beta", 0.0),
+                    "kl_coef": config.get("kl_coef", config.get("kl_beta", 0.0)),
                     "use_peft": config.get("use_peft", True),
                     "load_in_4bit": config.get("load_in_4bit", False),
                 },
@@ -67,7 +68,10 @@ def main() -> None:
         )
         return
 
-    summary = train_ppo_style(config)
+    if config.get("trainer", "trl") == "legacy":
+        summary = train_ppo_style(config)
+    else:
+        summary = train_ppo_trl(config)
     print(json.dumps(summary, indent=2, sort_keys=True))
 
 
