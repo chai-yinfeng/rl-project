@@ -31,3 +31,7 @@ wandb/
 .DS_Store
 .idea/
 .vscode/
+
+# experiments report
+reports/run_snapshots/*.tar.gz
+
