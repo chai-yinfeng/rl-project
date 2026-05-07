@@ -1,6 +1,11 @@
+import sys
+import types
+
 from reasoning_post_training.methods.dpo import (
     build_gold_chosen_pair,
     choose_preference_pair,
+    load_dpo_jsonl,
+    normalize_dpo_completion,
     score_gsm8k_completion,
 )
 
@@ -35,3 +40,27 @@ def test_build_gold_chosen_pair_uses_gold_solution_as_chosen():
 
     assert pair["chosen_score"] > pair["rejected_score"]
     assert pair["chosen_predicted_answer"] == "42"
+
+
+def test_normalize_dpo_completion_adds_response_boundary():
+    assert normalize_dpo_completion("Reasoning") == "\nReasoning"
+    assert normalize_dpo_completion("\nReasoning") == "\nReasoning"
+
+
+def test_load_dpo_jsonl_normalizes_completion_boundaries(tmp_path, monkeypatch):
+    class FakeDataset:
+        @classmethod
+        def from_list(cls, records):
+            return records
+
+    monkeypatch.setitem(sys.modules, "datasets", types.SimpleNamespace(Dataset=FakeDataset))
+    path = tmp_path / "pairs.jsonl"
+    path.write_text(
+        '{"prompt": "Solution:", "chosen": "Correct", "rejected": "Wrong"}\n',
+        encoding="utf-8",
+    )
+
+    record = load_dpo_jsonl(path)[0]
+
+    assert record["chosen"] == "\nCorrect"
+    assert record["rejected"] == "\nWrong"

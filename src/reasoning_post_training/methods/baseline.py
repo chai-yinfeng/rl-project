@@ -83,7 +83,9 @@ def generate_batch(
     if temperature > 0:
         generation_kwargs.update({"do_sample": True, "temperature": temperature, "top_p": top_p})
     else:
-        generation_kwargs["do_sample"] = False
+        generation_kwargs.update(
+            {"do_sample": False, "temperature": None, "top_p": None, "top_k": None}
+        )
 
     outputs = model.generate(**inputs, **generation_kwargs)
     prompt_width = inputs["input_ids"].shape[1]

@@ -1,9 +1,11 @@
 .PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k package-results \
 	qwen0_5b-dry-run qwen0_5b-test qwen0_5b-run qwen0_5b-eval qwen0_5b-all \
 	qwen1_5b-dry-run qwen1_5b-test qwen1_5b-run qwen1_5b-eval qwen1_5b-all \
+	baseline-0_5b-dry-run baseline-0_5b-test baseline-0_5b-run baseline-0_5b-eval \
 	dpo-0_5b-dry-run dpo-0_5b-test dpo-0_5b-run dpo-0_5b-eval \
 	grpo-0_5b-dry-run grpo-0_5b-test grpo-0_5b-run grpo-0_5b-eval \
 	ppo-0_5b-dry-run ppo-0_5b-test ppo-0_5b-run ppo-0_5b-eval \
+	baseline-1_5b-dry-run baseline-1_5b-test baseline-1_5b-run baseline-1_5b-eval \
 	dpo-1_5b-dry-run dpo-1_5b-test dpo-1_5b-run dpo-1_5b-eval \
 	grpo-1_5b-dry-run grpo-1_5b-test grpo-1_5b-run grpo-1_5b-eval \
 	ppo-1_5b-dry-run ppo-1_5b-test ppo-1_5b-run ppo-1_5b-eval
@@ -75,6 +77,18 @@ qwen1_5b-eval:
 qwen1_5b-all:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage all
 
+baseline-0_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage baseline --dry-run
+
+baseline-0_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_TEST_CONFIG) --stage baseline
+
+baseline-0_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage baseline
+
+baseline-0_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage baseline
+
 dpo-0_5b-dry-run:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage dpo --dry-run
 
@@ -110,6 +124,18 @@ ppo-0_5b-run:
 
 ppo-0_5b-eval:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN0_FULL_CONFIG) --stage ppo-eval
+
+baseline-1_5b-dry-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage baseline --dry-run
+
+baseline-1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage baseline
+
+baseline-1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage baseline
+
+baseline-1_5b-eval:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage baseline
 
 dpo-1_5b-dry-run:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage dpo --dry-run

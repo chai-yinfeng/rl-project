@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 from dataclasses import dataclass
 from math import sqrt
 from typing import Any
@@ -83,4 +84,21 @@ def build_grpo_config(config: dict[str, Any]):
 
     allowed_keys = set(inspect.signature(GRPOConfig.__init__).parameters)
     kwargs = {key: value for key, value in config.items() if key in allowed_keys}
+    if "generation_batch_size" in allowed_keys and "num_generations" in kwargs:
+        num_generations = int(kwargs["num_generations"])
+        generation_batch_size = kwargs.get("generation_batch_size")
+        if generation_batch_size is None:
+            per_device_batch_size = int(kwargs.get("per_device_train_batch_size", 1))
+            world_size = int(os.environ.get("WORLD_SIZE", "1"))
+            global_batch_size = per_device_batch_size * max(world_size, 1)
+            generation_batch_size = max(num_generations, global_batch_size)
+            remainder = generation_batch_size % num_generations
+            if remainder:
+                generation_batch_size += num_generations - remainder
+            kwargs["generation_batch_size"] = generation_batch_size
+        elif int(generation_batch_size) % num_generations != 0:
+            raise ValueError(
+                "generation_batch_size must be divisible by num_generations "
+                f"(got {generation_batch_size} and {num_generations})."
+            )
     return GRPOConfig(**kwargs)

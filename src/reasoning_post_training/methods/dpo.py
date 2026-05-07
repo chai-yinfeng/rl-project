@@ -72,6 +72,12 @@ def build_gold_chosen_pair(
     }
 
 
+def normalize_dpo_completion(completion: str) -> str:
+    """Keep prompt/response tokenization stable at the concatenation boundary."""
+    completion = completion.strip()
+    return completion if completion.startswith("\n") else f"\n{completion}"
+
+
 def load_dpo_jsonl(path: Path):
     """Load prompt/chosen/rejected JSONL data as a datasets.Dataset."""
     try:
@@ -91,8 +97,8 @@ def load_dpo_jsonl(path: Path):
             records.append(
                 {
                     "prompt": str(record["prompt"]),
-                    "chosen": str(record["chosen"]),
-                    "rejected": str(record["rejected"]),
+                    "chosen": normalize_dpo_completion(str(record["chosen"])),
+                    "rejected": normalize_dpo_completion(str(record["rejected"])),
                 }
             )
 

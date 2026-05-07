@@ -173,7 +173,6 @@ def main() -> None:
             dpo_config.setdefault("model_name_or_path", model)
             dpo_config["train_file"] = str(dpo_pairs_path)
             dpo_config["output_dir"] = str(dpo_model_dir)
-            dpo_config.setdefault("logging_dir", str(run_dir / "logs" / "dpo"))
             dpo_config_path = write_stage_config(run_dir, "dpo_train", dpo_config)
             command = [sys.executable, "scripts/run_dpo_train.py", "--config", str(dpo_config_path)]
             if args.dry_run:
@@ -196,7 +195,6 @@ def main() -> None:
             grpo_config = dict(config.get("grpo_train", {}))
             grpo_config.setdefault("model_name_or_path", model)
             grpo_config["output_dir"] = str(grpo_model_dir)
-            grpo_config.setdefault("logging_dir", str(run_dir / "logs" / "grpo"))
             grpo_config_path = write_stage_config(run_dir, "grpo_train", grpo_config)
             command = [sys.executable, "scripts/run_grpo_train.py", "--config", str(grpo_config_path)]
             if args.dry_run:
