@@ -43,8 +43,8 @@ def test_build_gold_chosen_pair_uses_gold_solution_as_chosen():
 
 
 def test_normalize_dpo_completion_adds_response_boundary():
-    assert normalize_dpo_completion("Reasoning") == "\nReasoning"
-    assert normalize_dpo_completion("\nReasoning") == "\nReasoning"
+    assert normalize_dpo_completion("Reasoning") == " Reasoning"
+    assert normalize_dpo_completion(" Reasoning") == " Reasoning"
 
 
 def test_load_dpo_jsonl_normalizes_completion_boundaries(tmp_path, monkeypatch):
@@ -62,5 +62,5 @@ def test_load_dpo_jsonl_normalizes_completion_boundaries(tmp_path, monkeypatch):
 
     record = load_dpo_jsonl(path)[0]
 
-    assert record["chosen"] == "\nCorrect"
-    assert record["rejected"] == "\nWrong"
+    assert record["chosen"] == " Correct"
+    assert record["rejected"] == " Wrong"

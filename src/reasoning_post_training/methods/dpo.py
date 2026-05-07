@@ -75,7 +75,7 @@ def build_gold_chosen_pair(
 def normalize_dpo_completion(completion: str) -> str:
     """Keep prompt/response tokenization stable at the concatenation boundary."""
     completion = completion.strip()
-    return completion if completion.startswith("\n") else f"\n{completion}"
+    return completion if completion.startswith(" ") else f" {completion}"
 
 
 def load_dpo_jsonl(path: Path):
