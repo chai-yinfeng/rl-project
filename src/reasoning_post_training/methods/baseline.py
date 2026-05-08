@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
 import time
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,11 @@ from reasoning_post_training.experiments import cuda_memory_summary, write_json
 from reasoning_post_training.models.loading import resolve_torch_dtype
 
 
-def read_completed_indices(output_path: Path) -> set[int]:
+def prompt_hash(prompt: str) -> str:
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
+
+
+def read_completed_indices(output_path: Path, expected_prompt_hashes: dict[int, str] | None = None) -> set[int]:
     if not output_path.exists():
         return set()
     completed: set[int] = set()
@@ -27,7 +32,13 @@ def read_completed_indices(output_path: Path) -> set[int]:
                 continue
             record = json.loads(line)
             if "example_index" in record:
-                completed.add(int(record["example_index"]))
+                example_index = int(record["example_index"])
+                if expected_prompt_hashes is not None:
+                    expected = expected_prompt_hashes.get(example_index)
+                    actual = record.get("prompt_hash")
+                    if actual != expected:
+                        continue
+                completed.add(example_index)
     return completed
 
 
@@ -161,7 +172,11 @@ def evaluate_gsm8k_model(
     dataset = load_gsm8k_split(split=split, subset=subset)
     end = min(start + limit, len(dataset)) if limit else len(dataset)
     indices = list(range(start, end))
-    completed = read_completed_indices(output_path) if resume else set()
+    expected_prompt_hashes = {
+        index: prompt_hash(str(dataset[index]["prompt"]))
+        for index in indices
+    }
+    completed = read_completed_indices(output_path, expected_prompt_hashes) if resume else set()
     pending_indices = [index for index in indices if index not in completed]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,6 +215,7 @@ def evaluate_gsm8k_model(
                             "split": split,
                             "question": record["question"],
                             "prompt": prompt,
+                            "prompt_hash": prompt_hash(prompt),
                             "completion": completion,
                             "predicted_answer": extract_predicted_answer(completion),
                             "gold_answer": record["gold_answer"],
