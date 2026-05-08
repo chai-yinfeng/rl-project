@@ -3,6 +3,7 @@ import types
 
 from reasoning_post_training.methods.dpo import (
     build_gold_chosen_pair,
+    build_gold_chosen_pair_from_completions,
     choose_preference_pair,
     load_dpo_jsonl,
     normalize_dpo_completion,
@@ -39,6 +40,28 @@ def test_build_gold_chosen_pair_uses_gold_solution_as_chosen():
     pair = build_gold_chosen_pair("Reasoning. Final answer: 12", "We compute it. #### 42", "42")
 
     assert pair["chosen_score"] > pair["rejected_score"]
+    assert pair["chosen_predicted_answer"] == "42"
+
+
+def test_build_gold_chosen_pair_from_completions_skips_all_correct_rejections():
+    pair = build_gold_chosen_pair_from_completions(
+        ["Correct but terse. Final answer: 42", "Also correct, no label: 42"],
+        "We compute it. #### 42",
+        "42",
+    )
+
+    assert pair is None
+
+
+def test_build_gold_chosen_pair_from_completions_uses_incorrect_rejection():
+    pair = build_gold_chosen_pair_from_completions(
+        ["Wrong. Final answer: 12", "Correct. Final answer: 42"],
+        "We compute it. #### 42",
+        "42",
+    )
+
+    assert pair is not None
+    assert pair["rejected_predicted_answer"] == "12"
     assert pair["chosen_predicted_answer"] == "42"
 
 

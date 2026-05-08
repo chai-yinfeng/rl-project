@@ -72,6 +72,29 @@ def build_gold_chosen_pair(
     }
 
 
+def build_gold_chosen_pair_from_completions(
+    completions: list[str],
+    answer: str,
+    gold_answer: str | int | float | None,
+) -> dict[str, Any] | None:
+    """Build a gold-chosen pair only when an actually incorrect rejection exists."""
+    scored = [
+        {
+            "completion": completion,
+            "score": score_gsm8k_completion(completion, gold_answer),
+            "predicted_answer": extract_predicted_answer(completion),
+            "correctness": correctness_reward(completion, gold_answer),
+        }
+        for completion in completions
+    ]
+    incorrect = [item for item in scored if item["correctness"] <= 0.0]
+    if not incorrect:
+        return None
+
+    rejected = min(incorrect, key=lambda item: item["score"])
+    return build_gold_chosen_pair(rejected["completion"], answer, gold_answer)
+
+
 def normalize_dpo_completion(completion: str) -> str:
     """Keep prompt/response tokenization stable at the concatenation boundary."""
     completion = completion.strip()

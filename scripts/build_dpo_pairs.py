@@ -13,7 +13,10 @@ from tqdm import tqdm
 from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt, load_gsm8k_split
 from reasoning_post_training.evaluation.answer_extraction import truncate_completion
 from reasoning_post_training.models.loading import load_causal_lm_and_tokenizer
-from reasoning_post_training.methods.dpo import build_gold_chosen_pair, choose_preference_pair, score_gsm8k_completion
+from reasoning_post_training.methods.dpo import (
+    build_gold_chosen_pair_from_completions,
+    choose_preference_pair,
+)
 from reasoning_post_training.runtime import set_seed
 
 
@@ -158,13 +161,11 @@ def main() -> None:
                 batch_indices, records, prompt_completions, strict=True
             ):
                 if args.include_gold_chosen:
-                    rejected = min(
+                    pair = build_gold_chosen_pair_from_completions(
                         completions,
-                        key=lambda completion: score_gsm8k_completion(
-                            completion, record["gold_answer"]
-                        ),
+                        record["answer"],
+                        record["gold_answer"],
                     )
-                    pair = build_gold_chosen_pair(rejected, record["answer"], record["gold_answer"])
                 else:
                     pair = choose_preference_pair(
                         completions,
