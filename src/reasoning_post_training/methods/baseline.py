@@ -9,8 +9,8 @@ from typing import Any
 
 from tqdm import tqdm
 
-from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
-from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt, load_gsm8k_split
+from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer, truncate_completion
 from reasoning_post_training.evaluation.metrics import evaluate_completions
 from reasoning_post_training.experiments import cuda_memory_summary, write_json
 from reasoning_post_training.models.loading import resolve_torch_dtype
@@ -70,8 +70,13 @@ def generate_batch(
     max_new_tokens: int,
     temperature: float,
     top_p: float,
+    use_chat_template: bool = True,
 ) -> list[str]:
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+    model_inputs = [
+        format_gsm8k_chat_prompt(tokenizer, prompt) if use_chat_template else prompt
+        for prompt in prompts
+    ]
+    inputs = tokenizer(model_inputs, return_tensors="pt", padding=True)
     device = next(model.parameters()).device
     inputs = {key: value.to(device) for key, value in inputs.items()}
 
@@ -90,7 +95,7 @@ def generate_batch(
     outputs = model.generate(**inputs, **generation_kwargs)
     prompt_width = inputs["input_ids"].shape[1]
     return [
-        tokenizer.decode(output[prompt_width:], skip_special_tokens=True).strip()
+        truncate_completion(tokenizer.decode(output[prompt_width:], skip_special_tokens=True))
         for output in outputs
     ]
 
@@ -113,6 +118,7 @@ def evaluate_gsm8k_model(
     output_path: Path,
     metrics_output_path: Path,
     resume: bool,
+    use_chat_template: bool = True,
 ) -> dict[str, Any]:
     dataset = load_gsm8k_split(split=split, subset=subset)
     end = min(start + limit, len(dataset)) if limit else len(dataset)
@@ -142,6 +148,7 @@ def evaluate_gsm8k_model(
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 top_p=top_p,
+                use_chat_template=use_chat_template,
             )
             for example_index, record, prompt, completion in zip(
                 batch_indices, batch, prompts, completions, strict=True
@@ -191,6 +198,7 @@ def evaluate_gsm8k_model(
         "start": start,
         "max_new_tokens": max_new_tokens,
         "temperature": temperature,
+        "use_chat_template": use_chat_template,
         "average_completion_chars": sum(lengths) / len(lengths) if lengths else 0.0,
         "elapsed_seconds": time.time() - started_at,
         **cuda_memory_summary(),

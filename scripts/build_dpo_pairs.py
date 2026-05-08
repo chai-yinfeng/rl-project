@@ -10,7 +10,8 @@ from typing import Any
 
 from tqdm import tqdm
 
-from reasoning_post_training.datasets.gsm8k import load_gsm8k_split
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt, load_gsm8k_split
+from reasoning_post_training.evaluation.answer_extraction import truncate_completion
 from reasoning_post_training.models.loading import load_causal_lm_and_tokenizer
 from reasoning_post_training.methods.dpo import build_gold_chosen_pair, choose_preference_pair, score_gsm8k_completion
 from reasoning_post_training.runtime import set_seed
@@ -35,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--trust-remote-code", action="store_true")
+    parser.add_argument("--no-chat-template", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, default=Path("data/processed/gsm8k_dpo_pairs.jsonl"))
     parser.add_argument("--resume", action="store_true")
@@ -65,7 +67,11 @@ def generate_completion_batches(
     prompts: list[str],
     args: argparse.Namespace,
 ) -> list[list[str]]:
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+    model_inputs = [
+        format_gsm8k_chat_prompt(tokenizer, prompt) if not args.no_chat_template else prompt
+        for prompt in prompts
+    ]
+    inputs = tokenizer(model_inputs, return_tensors="pt", padding=True)
     device = next(model.parameters()).device
     inputs = {key: value.to(device) for key, value in inputs.items()}
 
@@ -81,7 +87,7 @@ def generate_completion_batches(
     outputs = model.generate(**inputs, **generation_kwargs)
     prompt_width = inputs["input_ids"].shape[1]
     completions = [
-        tokenizer.decode(output[prompt_width:], skip_special_tokens=True).strip()
+        truncate_completion(tokenizer.decode(output[prompt_width:], skip_special_tokens=True))
         for output in outputs
     ]
     return [
@@ -117,6 +123,7 @@ def main() -> None:
                     "batch_size": args.batch_size,
                     "num_completions": args.num_completions,
                     "include_gold_chosen": args.include_gold_chosen,
+                    "use_chat_template": not args.no_chat_template,
                     "output": str(args.output),
                 },
                 indent=2,

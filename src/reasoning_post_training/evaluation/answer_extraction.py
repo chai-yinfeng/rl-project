@@ -7,12 +7,24 @@ from decimal import Decimal, InvalidOperation
 
 
 _GSM8K_FINAL_RE = re.compile(r"####\s*([-+]?(?:\d[\d,]*)(?:\.\d+)?)")
+_FINAL_ANSWER_RE = re.compile(
+    r"final answer\s*[:=]?\s*([-+]?(?:\d[\d,]*)(?:\.\d+)?)",
+    flags=re.IGNORECASE,
+)
 _LABELED_FINAL_RE = re.compile(
-    r"(?:final answer|answer|therefore|so the answer is)\s*[:=]?\s*"
+    r"(?:the answer is|answer|therefore|so the answer is)\s*[:=]?\s*"
     r"([-+]?(?:\d[\d,]*)(?:\.\d+)?)",
     flags=re.IGNORECASE,
 )
 _NUMBER_RE = re.compile(r"[-+]?(?:\d[\d,]*)(?:\.\d+)?")
+_GENERATION_LEAK_MARKERS = (
+    "\nHuman:",
+    "\nAssistant:",
+    "\nUser:",
+    "\nSystem:",
+    "<|im_start|>",
+    "<|im_end|>",
+)
 
 
 def normalize_numeric_answer(value: str | int | float | Decimal | None) -> str | None:
@@ -46,9 +58,15 @@ def extract_gsm8k_gold_answer(answer_text: str) -> str | None:
 
 def extract_predicted_answer(completion: str) -> str | None:
     """Extract a final numeric answer from a model completion."""
+    completion = truncate_completion(completion)
+
+    final_match = _FINAL_ANSWER_RE.search(completion)
+    if final_match:
+        return normalize_numeric_answer(final_match.group(1))
+
     labeled_matches = list(_LABELED_FINAL_RE.finditer(completion))
     if labeled_matches:
-        return normalize_numeric_answer(labeled_matches[-1].group(1))
+        return normalize_numeric_answer(labeled_matches[0].group(1))
 
     numbers = _NUMBER_RE.findall(completion)
     if not numbers:
@@ -56,9 +74,22 @@ def extract_predicted_answer(completion: str) -> str | None:
     return normalize_numeric_answer(numbers[-1])
 
 
+def truncate_completion(completion: str) -> str:
+    """Remove obvious prompt/chat leakage after the model's answer."""
+    text = str(completion).strip()
+    if not text:
+        return text
+
+    cut = len(text)
+    for marker in _GENERATION_LEAK_MARKERS:
+        marker_index = text.find(marker)
+        if marker_index >= 0:
+            cut = min(cut, marker_index)
+    return text[:cut].strip()
+
+
 def is_exact_match(completion: str, gold_answer: str | int | float | Decimal | None) -> bool:
     """Return whether a completion's extracted answer matches the gold answer."""
     prediction = extract_predicted_answer(completion)
     gold = normalize_numeric_answer(gold_answer)
     return prediction is not None and gold is not None and prediction == gold
-

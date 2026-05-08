@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--torch-dtype", choices=["auto", "float16", "bfloat16", "float32"], default="auto")
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--load-in-4bit", action="store_true")
+    parser.add_argument("--no-chat-template", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--metrics-output", type=Path, default=None)
     parser.add_argument("--resume", action="store_true")
@@ -50,6 +51,7 @@ def main() -> None:
         output_path=args.output,
         metrics_output_path=args.metrics_output or args.output.with_suffix(".metrics.json"),
         resume=args.resume,
+        use_chat_template=not args.no_chat_template,
     )
     print(json.dumps(metrics, indent=2, sort_keys=True))
 

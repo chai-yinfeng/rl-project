@@ -26,6 +26,33 @@ def format_gsm8k_prompt(question: str, system_prompt: str = DEFAULT_SYSTEM_PROMP
     return f"{system_prompt}\n\nProblem:\n{question.strip()}\n\nSolution:"
 
 
+def split_gsm8k_prompt(prompt: str) -> tuple[str, str]:
+    """Split a project GSM8K prompt into system and user chat messages."""
+    marker = "\n\nProblem:\n"
+    if marker not in prompt:
+        return DEFAULT_SYSTEM_PROMPT, prompt.strip()
+    system_prompt, problem_part = prompt.split(marker, 1)
+    return system_prompt.strip(), f"Problem:\n{problem_part.strip()}"
+
+
+def format_gsm8k_chat_prompt(tokenizer, prompt: str) -> str:
+    """Apply a tokenizer chat template when available, matching Qwen Instruct usage."""
+    chat_template = getattr(tokenizer, "chat_template", None)
+    if not chat_template:
+        return prompt
+
+    system_prompt, user_prompt = split_gsm8k_prompt(prompt)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    return tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+    )
+
+
 def convert_gsm8k_record(record: dict[str, str]) -> GSM8KExample:
     """Convert a raw GSM8K record into the project schema."""
     question = record["question"]
@@ -47,4 +74,3 @@ def load_gsm8k_split(split: str = "test", subset: str = "main"):
 
     dataset = load_dataset("gsm8k", subset, split=split)
     return dataset.map(lambda record: convert_gsm8k_record(record).__dict__)
-

@@ -10,7 +10,8 @@
     "max_new_tokens": 128,
     "temperature": 0.0,
     "top_p": 0.95,
-    "torch_dtype": "float16"
+    "torch_dtype": "float16",
+    "use_chat_template": true
   },
   "dpo_pairs": {
     "split": "train",
@@ -21,6 +22,7 @@
     "temperature": 0.7,
     "top_p": 0.95,
     "torch_dtype": "float16",
+    "use_chat_template": true,
     "include_gold_chosen": true
   },
   "dpo_train": {

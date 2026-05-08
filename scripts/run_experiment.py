@@ -101,6 +101,8 @@ def build_eval_command(
         command.extend(["--adapter", adapter])
     if eval_config.get("load_in_4bit", False):
         command.append("--load-in-4bit")
+    if eval_config.get("use_chat_template", True) is False:
+        command.append("--no-chat-template")
     return command
 
 
@@ -164,6 +166,8 @@ def main() -> None:
             ]
             if dpo_pair_config.get("load_in_4bit", False):
                 command.append("--load-in-4bit")
+            if dpo_pair_config.get("use_chat_template", True) is False:
+                command.append("--no-chat-template")
             if dpo_pair_config.get("allow_ties", False):
                 command.append("--allow-ties")
             if dpo_pair_config.get("include_gold_chosen", False):

@@ -20,10 +20,17 @@ def test_extract_predicted_answer_prefers_labeled_final_answer():
     assert extract_predicted_answer(completion) == "12"
 
 
+def test_extract_predicted_answer_uses_first_final_answer_before_continuation():
+    completion = (
+        "We compute 9 * 2 = 18. Final answer: 18.\n"
+        "Human: Given two numbers with difference 6, what is larger?"
+    )
+    assert extract_predicted_answer(completion) == "18"
+
+
 def test_extract_predicted_answer_falls_back_to_last_number():
     assert extract_predicted_answer("The result is therefore 7.") == "7"
 
 
 def test_is_exact_match_handles_equivalent_numbers():
     assert is_exact_match("Final answer: 1,200.0", "1200")
-
