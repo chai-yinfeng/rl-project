@@ -5,7 +5,7 @@
   "eval": {
     "split": "test",
     "subset": "main",
-    "limit": 200,
+    "limit": 1319,
     "batch_size": 16,
     "max_new_tokens": 256,
     "temperature": 0.0,
