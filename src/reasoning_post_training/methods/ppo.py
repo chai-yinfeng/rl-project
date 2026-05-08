@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
 from reasoning_post_training.experiments import append_jsonl, cuda_memory_summary, write_json
 from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
 from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
@@ -179,9 +180,18 @@ class RuleRewardModel:
 
     def _extract_question_and_completion(self, text: str) -> tuple[str | None, str]:
         question = None
-        if "Problem:\n" in text and "\n\nSolution:" in text:
-            question = text.split("Problem:\n", 1)[1].split("\n\nSolution:", 1)[0].strip()
-        completion = text.split("\n\nSolution:", 1)[-1] if "\n\nSolution:" in text else text
+        if "Problem:\n" in text:
+            problem_part = text.split("Problem:\n", 1)[1]
+            for separator in ("\nassistant\n", "\n\nSolution:"):
+                if separator in problem_part:
+                    question = problem_part.split(separator, 1)[0].strip()
+                    break
+        if "\nassistant\n" in text:
+            completion = text.rsplit("\nassistant\n", 1)[-1]
+        elif "\n\nSolution:" in text:
+            completion = text.split("\n\nSolution:", 1)[-1]
+        else:
+            completion = text
         return question, completion.strip()
 
     def score(self, hidden_states):
@@ -256,8 +266,14 @@ def train_ppo_trl(config: dict[str, Any]) -> dict[str, Any]:
     max_prompt_length = int(config.get("max_prompt_length", 512))
 
     def tokenize_prompt(batch):
+        prompts = [
+            format_gsm8k_chat_prompt(tokenizer, prompt)
+            if config.get("use_chat_template", True)
+            else prompt
+            for prompt in batch["prompt"]
+        ]
         outputs = tokenizer(
-            batch["prompt"],
+            prompts,
             truncation=True,
             max_length=max_prompt_length,
             padding=False,
@@ -314,18 +330,34 @@ def train_ppo_trl(config: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
-def _sequence_logprobs(model, tokenizer, prompts: list[str], completions: list[str]):
+def _format_policy_prompts(tokenizer, prompts: list[str], config: dict[str, Any]) -> list[str]:
+    if not config.get("use_chat_template", True):
+        return prompts
+    return [format_gsm8k_chat_prompt(tokenizer, prompt) for prompt in prompts]
+
+
+def _sequence_logprobs(
+    model,
+    tokenizer,
+    prompts: list[str],
+    completions: list[str],
+    config: dict[str, Any],
+):
     import torch
     import torch.nn.functional as F
 
-    texts = [prompt + completion for prompt, completion in zip(prompts, completions, strict=True)]
+    policy_prompts = _format_policy_prompts(tokenizer, prompts, config)
+    texts = [
+        prompt + completion
+        for prompt, completion in zip(policy_prompts, completions, strict=True)
+    ]
     encoded = tokenizer(texts, return_tensors="pt", padding=True)
     input_ids = encoded["input_ids"].to(model.device)
     attention_mask = encoded["attention_mask"].to(model.device)
 
     prompt_lengths = [
         tokenizer(prompt, return_tensors="pt", add_special_tokens=True)["input_ids"].shape[1]
-        for prompt in prompts
+        for prompt in policy_prompts
     ]
     outputs = model(input_ids=input_ids, attention_mask=attention_mask)
     logits = outputs.logits[:, :-1, :]
@@ -343,7 +375,8 @@ def _sequence_logprobs(model, tokenizer, prompts: list[str], completions: list[s
 
 
 def _generate_batch(model, tokenizer, prompts: list[str], config: dict[str, Any]) -> list[str]:
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True)
+    policy_prompts = _format_policy_prompts(tokenizer, prompts, config)
+    inputs = tokenizer(policy_prompts, return_tensors="pt", padding=True)
     inputs = {key: value.to(model.device) for key, value in inputs.items()}
     outputs = model.generate(
         **inputs,
@@ -408,10 +441,16 @@ def train_ppo_style(config: dict[str, Any]) -> dict[str, Any]:
         policy.eval()
         with torch.no_grad():
             completions = _generate_batch(policy, tokenizer, prompts, config)
-            old_logprobs, lengths = _sequence_logprobs(policy, tokenizer, prompts, completions)
+            old_logprobs, lengths = _sequence_logprobs(policy, tokenizer, prompts, completions, config)
             ref_logprobs = None
             if reference is not None:
-                ref_logprobs, _ = _sequence_logprobs(reference, tokenizer, prompts, completions)
+                ref_logprobs, _ = _sequence_logprobs(
+                    reference,
+                    tokenizer,
+                    prompts,
+                    completions,
+                    config,
+                )
         policy.train()
 
         rewards = torch.tensor(
@@ -426,7 +465,7 @@ def train_ppo_style(config: dict[str, Any]) -> dict[str, Any]:
             if torch.allclose(advantages, torch.zeros_like(advantages)):
                 advantages = rewards
 
-        new_logprobs, _ = _sequence_logprobs(policy, tokenizer, prompts, completions)
+        new_logprobs, _ = _sequence_logprobs(policy, tokenizer, prompts, completions, config)
         ratios = torch.exp(new_logprobs - old_logprobs)
         unclipped = ratios * advantages
         clipped = torch.clamp(ratios, 1.0 - clip_range, 1.0 + clip_range) * advantages

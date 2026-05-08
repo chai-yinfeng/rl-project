@@ -42,11 +42,13 @@
     "save_steps": 250,
     "logging_steps": 10,
     "report_to": "none",
+    "use_chat_template": true,
     "remove_unused_columns": false,
     "model_init_kwargs": {
       "torch_dtype": "bfloat16",
       "low_cpu_mem_usage": true
     },
+    "use_chat_template": true,
     "use_peft": true,
     "load_in_4bit": false,
     "lora_r": 16,
@@ -117,6 +119,7 @@
     "stop_token": "eos",
     "max_prompt_length": 512,
     "train_value_backbone": false,
+    "use_chat_template": true,
     "use_peft": true,
     "load_in_4bit": false,
     "lora_r": 16,

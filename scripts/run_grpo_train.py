@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
 from reasoning_post_training.experiments import write_json
 from reasoning_post_training.methods.grpo import (
     build_grpo_config,
@@ -101,6 +102,13 @@ def main() -> None:
     tokenizer.padding_side = "left"
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    if config.get("use_chat_template", True):
+        train_dataset = train_dataset.map(
+            lambda record: {
+                "prompt": format_gsm8k_chat_prompt(tokenizer, str(record["prompt"]))
+            }
+        )
 
     grpo_config = build_grpo_config(config)
     peft_config = build_peft_config(config)

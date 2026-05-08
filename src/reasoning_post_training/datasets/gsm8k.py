@@ -8,8 +8,9 @@ from reasoning_post_training.evaluation.answer_extraction import extract_gsm8k_g
 
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a careful math solver. Solve the problem step by step, then end with "
-    "'Final answer: <number>'."
+    "You are a careful math solver. Solve the problem step by step. Put the final "
+    "numeric answer on its own last line exactly as:\nFinal answer: <number>\n"
+    "Do not write anything after the final answer."
 )
 
 

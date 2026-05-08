@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from reasoning_post_training.experiments import write_json
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
 from reasoning_post_training.methods.dpo import build_dpo_config, load_dpo_jsonl
 from reasoning_post_training.runtime import set_seed
 
@@ -98,6 +99,13 @@ def main() -> None:
     tokenizer.padding_side = "left"
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    if config.get("use_chat_template", True):
+        train_dataset = train_dataset.map(
+            lambda record: {
+                "prompt": format_gsm8k_chat_prompt(tokenizer, str(record["prompt"]))
+            }
+        )
 
     model_init_kwargs = dict(config.get("model_init_kwargs", {}))
     if config.get("load_in_4bit", False):
