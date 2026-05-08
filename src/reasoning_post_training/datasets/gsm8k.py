@@ -76,4 +76,7 @@ def load_gsm8k_split(split: str = "test", subset: str = "main"):
         raise RuntimeError("Install project dependencies before loading GSM8K.") from exc
 
     dataset = load_dataset("gsm8k", subset, split=split)
-    return dataset.map(lambda record: convert_gsm8k_record(record).__dict__)
+    return dataset.map(
+        lambda record: convert_gsm8k_record(record).__dict__,
+        load_from_cache_file=False,
+    )
