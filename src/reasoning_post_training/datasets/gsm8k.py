@@ -32,6 +32,8 @@ def split_gsm8k_prompt(prompt: str) -> tuple[str, str]:
     if marker not in prompt:
         return DEFAULT_SYSTEM_PROMPT, prompt.strip()
     system_prompt, problem_part = prompt.split(marker, 1)
+    if problem_part.endswith("\n\nSolution:"):
+        problem_part = problem_part[: -len("\n\nSolution:")]
     return system_prompt.strip(), f"Problem:\n{problem_part.strip()}"
 
 

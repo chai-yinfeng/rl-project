@@ -7,10 +7,11 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
-from reasoning_post_training.experiments import prepare_run_dir, timestamp, write_json
+from reasoning_post_training.experiments import append_jsonl, prepare_run_dir, timestamp, write_json
 
 
 STAGE_ORDER = [
@@ -50,10 +51,47 @@ def load_config(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
-def run_command(command: list[str], *, dry_run: bool) -> None:
+def run_command(command: list[str], *, dry_run: bool, run_dir: Path, stage: str) -> None:
     print(" ".join(command), flush=True)
-    if not dry_run:
-        subprocess.run(command, check=True)
+    started_at = time.time()
+    record = {
+        "stage": stage,
+        "command": command,
+        "dry_run": dry_run,
+        "started_at": started_at,
+    }
+    log_path = run_dir / "logs" / "stage_stdout" / f"{stage}.log"
+    if dry_run:
+        record.update({"returncode": 0, "elapsed_seconds": 0.0, "log_path": None})
+        append_jsonl(run_dir / "logs" / "run_commands.jsonl", record)
+        return
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line, end="")
+            log_handle.write(line)
+            log_handle.flush()
+        returncode = process.wait()
+
+    record.update(
+        {
+            "returncode": returncode,
+            "elapsed_seconds": time.time() - started_at,
+            "log_path": str(log_path),
+        }
+    )
+    append_jsonl(run_dir / "logs" / "run_commands.jsonl", record)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, command)
 
 
 def write_stage_config(run_dir: Path, name: str, config: dict[str, Any]) -> Path:
@@ -133,6 +171,8 @@ def main() -> None:
                     metrics_output=run_dir / "metrics" / "baseline.json",
                 ),
                 dry_run=args.dry_run,
+                run_dir=run_dir,
+                stage=stage,
             )
 
         elif stage == "dpo-pairs":
@@ -172,7 +212,7 @@ def main() -> None:
                 command.append("--allow-ties")
             if dpo_pair_config.get("include_gold_chosen", False):
                 command.append("--include-gold-chosen")
-            run_command(command, dry_run=args.dry_run)
+            run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
 
         elif stage == "dpo-train":
             dpo_config = dict(config.get("dpo_train", {}))
@@ -183,7 +223,7 @@ def main() -> None:
             command = [sys.executable, "scripts/run_dpo_train.py", "--config", str(dpo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
-            run_command(command, dry_run=False)
+            run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
 
         elif stage == "dpo-eval":
             run_command(
@@ -195,6 +235,8 @@ def main() -> None:
                     metrics_output=run_dir / "metrics" / "dpo.json",
                 ),
                 dry_run=args.dry_run,
+                run_dir=run_dir,
+                stage=stage,
             )
 
         elif stage == "grpo-train":
@@ -205,7 +247,7 @@ def main() -> None:
             command = [sys.executable, "scripts/run_grpo_train.py", "--config", str(grpo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
-            run_command(command, dry_run=False)
+            run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
 
         elif stage == "grpo-eval":
             run_command(
@@ -217,6 +259,8 @@ def main() -> None:
                     metrics_output=run_dir / "metrics" / "grpo.json",
                 ),
                 dry_run=args.dry_run,
+                run_dir=run_dir,
+                stage=stage,
             )
 
         elif stage == "ppo-train":
@@ -227,7 +271,7 @@ def main() -> None:
             command = [sys.executable, "scripts/run_ppo_train.py", "--config", str(ppo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
-            run_command(command, dry_run=False)
+            run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
 
         elif stage == "ppo-eval":
             run_command(
@@ -239,6 +283,8 @@ def main() -> None:
                     metrics_output=run_dir / "metrics" / "ppo.json",
                 ),
                 dry_run=args.dry_run,
+                run_dir=run_dir,
+                stage=stage,
             )
 
 

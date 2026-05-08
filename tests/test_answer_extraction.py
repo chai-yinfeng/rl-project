@@ -3,6 +3,7 @@ from reasoning_post_training.evaluation.answer_extraction import (
     extract_predicted_answer,
     is_exact_match,
     normalize_numeric_answer,
+    truncate_completion,
 )
 
 
@@ -26,6 +27,11 @@ def test_extract_predicted_answer_uses_first_final_answer_before_continuation():
         "Human: Given two numbers with difference 6, what is larger?"
     )
     assert extract_predicted_answer(completion) == "18"
+
+
+def test_truncate_completion_stops_after_first_final_answer():
+    completion = "Work. Final answer: 18.\nHuman: New problem with answer 6"
+    assert truncate_completion(completion) == "Work. Final answer: 18"
 
 
 def test_extract_predicted_answer_falls_back_to_last_number():

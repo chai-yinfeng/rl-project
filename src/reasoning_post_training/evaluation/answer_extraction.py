@@ -81,6 +81,9 @@ def truncate_completion(completion: str) -> str:
         return text
 
     cut = len(text)
+    final_match = _FINAL_ANSWER_RE.search(text)
+    if final_match:
+        cut = min(cut, final_match.end())
     for marker in _GENERATION_LEAK_MARKERS:
         marker_index = text.find(marker)
         if marker_index >= 0:

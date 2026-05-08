@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -100,6 +101,43 @@ def generate_batch(
     ]
 
 
+def write_eval_diagnostics(
+    metrics_output_path: Path,
+    completions: list[str],
+    gold_answers: list[str],
+) -> None:
+    """Write lightweight generation diagnostics next to run logs."""
+    if not completions:
+        return
+
+    number_re = re.compile(r"[-+]?(?:\d[\d,]*)(?:\.\d+)?")
+    final_answer_re = re.compile(r"final answer\s*[:=]?\s*[-+]?(?:\d[\d,]*)(?:\.\d+)?", re.I)
+    exact = [
+        extract_predicted_answer(completion) == str(gold)
+        for completion, gold in zip(completions, gold_answers, strict=True)
+    ]
+    diagnostics = {
+        "total": len(completions),
+        "accuracy": sum(exact) / len(exact),
+        "final_answer_rate": sum(bool(final_answer_re.search(text)) for text in completions)
+        / len(completions),
+        "chat_leak_rate": sum(
+            any(marker in text for marker in ("Human:", "Assistant:", "User:", "System:"))
+            for text in completions
+        )
+        / len(completions),
+        "average_completion_chars": sum(len(text) for text in completions) / len(completions),
+        "max_completion_chars": max(len(text) for text in completions),
+        "average_number_count": sum(len(number_re.findall(text)) for text in completions)
+        / len(completions),
+    }
+    run_dir = metrics_output_path.parent.parent
+    write_json(
+        run_dir / "logs" / "diagnostics" / f"{metrics_output_path.stem}_eval.json",
+        diagnostics,
+    )
+
+
 def evaluate_gsm8k_model(
     *,
     model_name_or_path: str,
@@ -189,6 +227,7 @@ def evaluate_gsm8k_model(
             lengths.append(len(completion))
 
     result = evaluate_completions(completions, gold_answers)
+    write_eval_diagnostics(metrics_output_path, completions, gold_answers)
     metrics = {
         **result.__dict__,
         "model": model_name_or_path,
