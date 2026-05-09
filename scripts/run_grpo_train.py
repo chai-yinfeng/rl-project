@@ -8,14 +8,22 @@ import json
 from pathlib import Path
 from typing import Any
 
-from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
-from reasoning_post_training.experiments import write_json
+from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt, load_gsm8k_split
+from reasoning_post_training.evaluation.answer_extraction import truncate_completion
+from reasoning_post_training.evaluation.metrics import evaluate_completions
+from reasoning_post_training.experiments import append_jsonl, write_json
 from reasoning_post_training.methods.grpo import (
     build_grpo_config,
     build_gsm8k_grpo_dataset,
     gsm8k_grpo_reward_func,
 )
 from reasoning_post_training.runtime import set_seed
+
+try:
+    from transformers import TrainerCallback
+except ImportError:
+    class TrainerCallback:  # type: ignore[no-redef]
+        pass
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +63,104 @@ def build_peft_config(config: dict[str, Any]):
     return LoraConfig(**peft_kwargs)
 
 
+class TemperatureZeroEvalCallback(TrainerCallback):
+    """Periodically evaluate the current policy with deterministic generation."""
+
+    def __init__(self, tokenizer, eval_records: list[dict[str, Any]], config: dict[str, Any]) -> None:
+        self.tokenizer = tokenizer
+        self.eval_records = eval_records
+        self.eval_steps = int(config.get("train_eval_steps", 0) or 0)
+        self.batch_size = int(config.get("train_eval_batch_size", 4))
+        self.max_new_tokens = int(config.get("train_eval_max_new_tokens", 256))
+        self.max_prompt_length = int(config.get("max_prompt_length", 512))
+        self.use_chat_template = bool(config.get("use_chat_template", True))
+        self.output_path = Path(config["output_dir"]) / "metrics" / "train_eval.jsonl"
+        self.completed_steps: set[int] = set()
+        self.trainer = None
+
+    def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
+        if not self.eval_records or self.eval_steps <= 0:
+            return control
+        step = int(state.global_step)
+        if step <= 0 or step in self.completed_steps or step % self.eval_steps != 0:
+            return control
+
+        model = kwargs.get("model")
+        if model is None:
+            return control
+        metrics = self.evaluate(model, step)
+        if self.trainer is not None:
+            self.trainer.log(metrics)
+        self.completed_steps.add(step)
+        return control
+
+    def evaluate(self, model, step: int) -> dict[str, float]:  # noqa: ANN001
+        import torch
+
+        was_training = model.training
+        model.eval()
+        completions: list[str] = []
+        gold_answers: list[str] = []
+
+        with torch.no_grad():
+            for batch_start in range(0, len(self.eval_records), self.batch_size):
+                batch = self.eval_records[batch_start : batch_start + self.batch_size]
+                prompts = [
+                    format_gsm8k_chat_prompt(self.tokenizer, str(record["prompt"]))
+                    if self.use_chat_template
+                    else str(record["prompt"])
+                    for record in batch
+                ]
+                inputs = self.tokenizer(
+                    prompts,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=self.max_prompt_length,
+                )
+                device = next(model.parameters()).device
+                inputs = {key: value.to(device) for key, value in inputs.items()}
+                outputs = model.generate(
+                    **inputs,
+                    do_sample=False,
+                    max_new_tokens=self.max_new_tokens,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    temperature=None,
+                    top_p=None,
+                    top_k=None,
+                )
+                prompt_width = inputs["input_ids"].shape[1]
+                completions.extend(
+                    truncate_completion(
+                        self.tokenizer.decode(output[prompt_width:], skip_special_tokens=True)
+                    )
+                    for output in outputs
+                )
+                gold_answers.extend(str(record["gold_answer"]) for record in batch)
+
+        if was_training:
+            model.train()
+
+        result = evaluate_completions(completions, gold_answers)
+        final_answer_count = sum("final answer" in completion.lower() for completion in completions)
+        record = {
+            "step": step,
+            "total": result.total,
+            "correct": result.correct,
+            "invalid": result.invalid,
+            "accuracy": result.accuracy,
+            "invalid_rate": result.invalid_rate,
+            "final_answer_rate": final_answer_count / result.total if result.total else 0.0,
+        }
+        append_jsonl(self.output_path, record)
+        return {
+            "train_eval/accuracy": result.accuracy,
+            "train_eval/invalid_rate": result.invalid_rate,
+            "train_eval/final_answer_rate": record["final_answer_rate"],
+        }
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
@@ -84,6 +190,8 @@ def main() -> None:
                     "output_dir": config["output_dir"],
                     "max_steps": config["max_steps"],
                     "num_generations": config["num_generations"],
+                    "train_eval_steps": config.get("train_eval_steps", 0),
+                    "train_eval_limit": config.get("train_eval_limit", 0),
                     "use_peft": config.get("use_peft", False),
                 },
                 indent=2,
@@ -120,6 +228,16 @@ def main() -> None:
         processing_class=tokenizer,
         peft_config=peft_config,
     )
+    train_eval_limit = int(config.get("train_eval_limit", 0) or 0)
+    if train_eval_limit > 0 and int(config.get("train_eval_steps", 0) or 0) > 0:
+        eval_split = config.get("train_eval_split", "test")
+        eval_start = int(config.get("train_eval_start", 0))
+        eval_dataset = load_gsm8k_split(split=eval_split, subset=config.get("subset", "main"))
+        eval_end = min(eval_start + train_eval_limit, len(eval_dataset))
+        eval_records = [dict(eval_dataset[index]) for index in range(eval_start, eval_end)]
+        eval_callback = TemperatureZeroEvalCallback(tokenizer, eval_records, config)
+        eval_callback.trainer = trainer
+        trainer.add_callback(eval_callback)
     train_result = trainer.train()
     trainer.save_model(config["output_dir"])
     trainer.save_state()

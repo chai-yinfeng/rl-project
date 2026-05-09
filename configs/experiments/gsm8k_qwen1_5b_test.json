@@ -8,7 +8,7 @@
     "limit": 20,
     "batch_size": 4,
     "max_new_tokens": 128,
-    "temperature": 0.0,
+    "temperature": 0,
     "top_p": 0.95,
     "torch_dtype": "float16",
     "use_chat_template": true
@@ -43,13 +43,24 @@
     "report_to": "none",
     "use_chat_template": true,
     "remove_unused_columns": false,
-    "model_init_kwargs": {"torch_dtype": "float16", "low_cpu_mem_usage": true},
+    "model_init_kwargs": {
+      "torch_dtype": "float16",
+      "low_cpu_mem_usage": true
+    },
     "use_peft": true,
     "load_in_4bit": false,
     "lora_r": 8,
     "lora_alpha": 16,
     "lora_dropout": 0.05,
-    "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
   },
   "grpo_train": {
     "dataset": "gsm8k",
@@ -60,14 +71,14 @@
     "per_device_train_batch_size": 2,
     "gradient_accumulation_steps": 2,
     "max_steps": 1,
-    "learning_rate": 0.000001,
+    "learning_rate": 5e-7,
     "num_generations": 2,
     "generation_batch_size": 4,
     "max_prompt_length": 384,
     "max_completion_length": 96,
     "temperature": 0.7,
     "top_p": 0.95,
-    "beta": 0.0,
+    "beta": 0.02,
     "epsilon": 0.2,
     "optim": "adamw_torch",
     "fp16": true,
@@ -76,13 +87,30 @@
     "save_steps": 1,
     "logging_steps": 1,
     "report_to": "none",
-    "model_init_kwargs": {"torch_dtype": "float16", "low_cpu_mem_usage": true},
+    "model_init_kwargs": {
+      "torch_dtype": "float16",
+      "low_cpu_mem_usage": true
+    },
     "use_chat_template": true,
     "use_peft": true,
     "lora_r": 8,
     "lora_alpha": 16,
     "lora_dropout": 0.05,
-    "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "train_eval_split": "train",
+    "train_eval_start": 8,
+    "train_eval_limit": 4,
+    "train_eval_steps": 1,
+    "train_eval_batch_size": 2,
+    "train_eval_max_new_tokens": 128
   },
   "ppo_train": {
     "subset": "main",
@@ -101,14 +129,14 @@
     "top_p": 0.95,
     "clip_range": 0.2,
     "kl_coef": 0.02,
-    "max_grad_norm": 1.0,
+    "max_grad_norm": 1,
     "torch_dtype": "bfloat16",
     "save_steps": 1,
     "logging_steps": 1,
     "num_ppo_epochs": 1,
     "num_mini_batches": 1,
     "local_rollout_forward_batch_size": 2,
-    "missing_eos_penalty": 1.0,
+    "missing_eos_penalty": 1,
     "stop_token": "eos",
     "max_prompt_length": 384,
     "train_value_backbone": false,
@@ -118,6 +146,14 @@
     "lora_r": 8,
     "lora_alpha": 16,
     "lora_dropout": 0.05,
-    "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
   }
 }

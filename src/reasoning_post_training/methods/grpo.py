@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Any
 
-from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
-from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
+from reasoning_post_training.rewards.gsm8k import grpo_shaped_reward
 
 
 @dataclass(frozen=True)
@@ -67,11 +66,7 @@ def gsm8k_grpo_reward_func(
     """Reward function signature compatible with TRL GRPOTrainer."""
     rewards: list[float] = []
     for completion, gold in zip(completions, gold_answer, strict=True):
-        reward = correctness_reward(completion, gold)
-        reward += format_reward(completion)
-        if extract_predicted_answer(completion) is None:
-            reward -= 0.1
-        rewards.append(reward)
+        rewards.append(grpo_shaped_reward(completion, gold))
     return rewards
 
 
