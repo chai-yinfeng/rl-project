@@ -16,7 +16,6 @@ from reasoning_post_training.experiments import append_jsonl, prepare_run_dir, t
 
 STAGE_ORDER = [
     "baseline",
-    "math-baseline",
     "dpo-pairs",
     "dpo-train",
     "dpo-eval",
@@ -28,8 +27,8 @@ STAGE_ORDER = [
 
 STAGE_GROUPS = {
     "all": STAGE_ORDER,
-    "run": ["baseline", "math-baseline", "dpo-pairs", "dpo-train", "grpo-train", "ppo-train"],
-    "eval": ["baseline", "math-baseline", "dpo-eval", "grpo-eval", "ppo-eval"],
+    "run": ["baseline", "dpo-pairs", "dpo-train", "grpo-train", "ppo-train"],
+    "eval": ["baseline", "dpo-eval", "grpo-eval", "ppo-eval"],
     "math": ["math-baseline"],
     "math-baseline": ["math-baseline"],
     "math-eval": ["math-baseline"],
