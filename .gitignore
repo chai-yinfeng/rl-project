@@ -11,18 +11,17 @@ __pycache__/
 .venv/
 venv/
 
-# Data and experiment outputs
-data/raw/*
-data/processed/*
+# Data, reports, and experiment outputs
+data/
+notebooks/
+reports/
+logs/
 outputs/
 /experiments/
+experiments.zip
 checkpoints/
 runs/
 wandb/
-
-# Keep directory placeholders
-!data/raw/.gitkeep
-!data/processed/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
@@ -34,4 +33,3 @@ wandb/
 
 # experiments report
 reports/run_snapshots/*.tar.gz
-

@@ -100,6 +100,6 @@ The repository is organized around two model scales and two run sizes:
    - compare Qwen2.5-0.5B and Qwen2.5-1.5B under matched GSM8K settings
    - write all artifacts under `experiments/<run_name>/`
 
-The maintained entrypoints are Makefile targets that call `scripts/run_experiment.py`.
+The maintained entrypoints are Makefile targets that call `scripts/experiments/run_experiment.py`.
 Individual stage scripts are kept as internal implementation details rather than
 user-facing launchers.

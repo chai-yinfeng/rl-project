@@ -5,17 +5,17 @@
 The user-facing entrypoint is the Makefile. It calls:
 
 ```text
-scripts/run_experiment.py
+scripts/experiments/run_experiment.py
 ```
 
 The stage scripts are implementation details:
 
-- `scripts/build_dpo_pairs.py`
-- `scripts/run_dpo_train.py`
-- `scripts/run_grpo_train.py`
-- `scripts/run_ppo_train.py`
-- `scripts/evaluate_model.py`
-- `scripts/package_results.sh`
+- `scripts/train/build_dpo_pairs.py`
+- `scripts/train/run_dpo_train.py`
+- `scripts/train/run_grpo_train.py`
+- `scripts/train/run_ppo_train.py`
+- `scripts/eval/evaluate_model.py`
+- `scripts/analysis/package_results.sh`
 
 ## Source Layout
 

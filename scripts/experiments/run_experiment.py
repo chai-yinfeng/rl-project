@@ -114,7 +114,7 @@ def build_eval_command(
 ) -> list[str]:
     command = [
         sys.executable,
-        "scripts/evaluate_model.py",
+        "scripts/eval/evaluate_model.py",
         "--model",
         model,
         "--split",
@@ -201,7 +201,7 @@ def main() -> None:
             dpo_pair_config = config.get("dpo_pairs", {})
             command = [
                 sys.executable,
-                "scripts/build_dpo_pairs.py",
+                "scripts/train/build_dpo_pairs.py",
                 "--model",
                 model,
                 "--split",
@@ -244,7 +244,7 @@ def main() -> None:
             dpo_config["train_file"] = str(dpo_pairs_path)
             dpo_config["output_dir"] = str(dpo_model_dir)
             dpo_config_path = write_stage_config(run_dir, "dpo_train", dpo_config)
-            command = [sys.executable, "scripts/run_dpo_train.py", "--config", str(dpo_config_path)]
+            command = [sys.executable, "scripts/train/run_dpo_train.py", "--config", str(dpo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
             run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
@@ -268,7 +268,7 @@ def main() -> None:
             grpo_config.setdefault("model_name_or_path", model)
             grpo_config["output_dir"] = str(grpo_model_dir)
             grpo_config_path = write_stage_config(run_dir, "grpo_train", grpo_config)
-            command = [sys.executable, "scripts/run_grpo_train.py", "--config", str(grpo_config_path)]
+            command = [sys.executable, "scripts/train/run_grpo_train.py", "--config", str(grpo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
             run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
@@ -292,7 +292,7 @@ def main() -> None:
             ppo_config.setdefault("model_name_or_path", model)
             ppo_config["output_dir"] = str(ppo_model_dir)
             ppo_config_path = write_stage_config(run_dir, "ppo_train", ppo_config)
-            command = [sys.executable, "scripts/run_ppo_train.py", "--config", str(ppo_config_path)]
+            command = [sys.executable, "scripts/train/run_ppo_train.py", "--config", str(ppo_config_path)]
             if args.dry_run:
                 command.append("--dry-run")
             run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
