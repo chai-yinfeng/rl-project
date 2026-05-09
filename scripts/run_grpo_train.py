@@ -11,7 +11,7 @@ from typing import Any
 from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt, load_gsm8k_split
 from reasoning_post_training.evaluation.answer_extraction import truncate_completion
 from reasoning_post_training.evaluation.metrics import evaluate_completions
-from reasoning_post_training.experiments import append_jsonl, write_json
+from reasoning_post_training.experiments import append_jsonl, cuda_memory_summary, write_json
 from reasoning_post_training.methods.grpo import (
     build_grpo_config,
     build_gsm8k_grpo_dataset,

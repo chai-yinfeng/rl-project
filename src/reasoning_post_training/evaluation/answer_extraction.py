@@ -43,9 +43,15 @@ def normalize_numeric_answer(value: str | int | float | Decimal | None) -> str |
         return None
 
     if number == number.to_integral_value():
-        return str(number.quantize(Decimal(1)))
+        try:
+            return str(number.quantize(Decimal(1)))
+        except InvalidOperation:
+            return format(number, "f")
 
-    return format(number.normalize(), "f")
+    try:
+        return format(number.normalize(), "f")
+    except InvalidOperation:
+        return format(number, "f")
 
 
 def extract_gsm8k_gold_answer(answer_text: str) -> str | None:

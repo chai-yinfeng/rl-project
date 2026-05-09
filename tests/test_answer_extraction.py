@@ -38,5 +38,10 @@ def test_extract_predicted_answer_falls_back_to_last_number():
     assert extract_predicted_answer("The result is therefore 7.") == "7"
 
 
+def test_extract_predicted_answer_handles_very_large_integers():
+    huge = "9" * 120
+    assert extract_predicted_answer(f"Final answer: {huge}") == huge
+
+
 def test_is_exact_match_handles_equivalent_numbers():
     assert is_exact_match("Final answer: 1,200.0", "1200")
