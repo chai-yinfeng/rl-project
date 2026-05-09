@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,10 @@ from reasoning_post_training.runtime import set_seed
 
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+
+
+def prompt_hash(prompt: str) -> str:
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,7 +55,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_completed_indices(output_path: Path) -> set[int]:
+def read_completed_indices(
+    output_path: Path,
+    *,
+    expected_prompt_hashes: dict[int, str] | None = None,
+    expected_generation_config: dict[str, Any] | None = None,
+) -> set[int]:
     if not output_path.exists():
         return set()
 
@@ -61,7 +71,15 @@ def read_completed_indices(output_path: Path) -> set[int]:
                 continue
             record = json.loads(line)
             if "example_index" in record:
-                completed.add(int(record["example_index"]))
+                example_index = int(record["example_index"])
+                if expected_prompt_hashes is not None:
+                    expected = expected_prompt_hashes.get(example_index)
+                    if record.get("prompt_hash") != expected:
+                        continue
+                if expected_generation_config is not None:
+                    if any(record.get(key) != value for key, value in expected_generation_config.items()):
+                        continue
+                completed.add(example_index)
     return completed
 
 
@@ -113,7 +131,31 @@ def main() -> None:
     dataset = load_gsm8k_split(split=args.split, subset=args.subset)
     end = min(args.start + args.limit, len(dataset))
     indices = list(range(args.start, end))
-    completed = read_completed_indices(args.output) if args.resume else set()
+    expected_prompt_hashes = {
+        index: prompt_hash(str(dataset[index]["prompt"]))
+        for index in indices
+    }
+    expected_generation_config = {
+        "model": args.model,
+        "split": args.split,
+        "num_completions": args.num_completions,
+        "max_new_tokens": args.max_new_tokens,
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+        "use_chat_template": not args.no_chat_template,
+        "allow_ties": args.allow_ties,
+        "include_gold_chosen": args.include_gold_chosen,
+        "gold_fallback": args.gold_fallback,
+    }
+    completed = (
+        read_completed_indices(
+            args.output,
+            expected_prompt_hashes=expected_prompt_hashes,
+            expected_generation_config=expected_generation_config,
+        )
+        if args.resume
+        else set()
+    )
     pending_indices = [idx for idx in indices if idx not in completed]
 
     if args.dry_run:
@@ -190,6 +232,8 @@ def main() -> None:
                     "split": args.split,
                     "question": record["question"],
                     "prompt": record["prompt"],
+                    "prompt_hash": prompt_hash(record["prompt"]),
+                    **expected_generation_config,
                     "gold_answer": record["gold_answer"],
                     "answer": record["answer"],
                     **pair,

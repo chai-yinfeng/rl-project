@@ -184,6 +184,9 @@ def evaluate_gsm8k_model(
         for index in indices
     }
     expected_generation_config = {
+        "model": model_name_or_path,
+        "adapter": adapter,
+        "split": split,
         "max_new_tokens": max_new_tokens,
         "temperature": temperature,
         "top_p": top_p,
@@ -267,10 +270,10 @@ def evaluate_gsm8k_model(
         record = records_by_index.get(index)
         if record is None:
             continue
-            completion = str(record["completion"])
-            completions.append(completion)
-            gold_answers.append(str(record["gold_answer"]))
-            lengths.append(len(completion))
+        completion = str(record["completion"])
+        completions.append(completion)
+        gold_answers.append(str(record["gold_answer"]))
+        lengths.append(len(completion))
 
     result = evaluate_completions(completions, gold_answers)
     write_eval_diagnostics(metrics_output_path, completions, gold_answers)
