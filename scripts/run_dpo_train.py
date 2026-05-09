@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from reasoning_post_training.experiments import write_json
+from reasoning_post_training.experiments import cuda_memory_summary, write_json
 from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
 from reasoning_post_training.methods.dpo import build_dpo_config, load_dpo_jsonl
 from reasoning_post_training.runtime import set_seed
@@ -123,9 +123,25 @@ def main() -> None:
     train_result = trainer.train()
     trainer.save_model(config["output_dir"])
     trainer.save_state()
+    effective_batch_size = int(config.get("per_device_train_batch_size", 1)) * int(
+        config.get("gradient_accumulation_steps", 1)
+    )
     write_json(
         Path(config["output_dir"]) / "metrics" / "train.json",
-        {key: float(value) for key, value in train_result.metrics.items()},
+        {
+            "method": "dpo",
+            "model_name_or_path": config["model_name_or_path"],
+            "train_pairs": len(train_dataset),
+            "effective_batch_size": effective_batch_size,
+            "per_device_train_batch_size": int(config.get("per_device_train_batch_size", 1)),
+            "gradient_accumulation_steps": int(config.get("gradient_accumulation_steps", 1)),
+            "learning_rate": float(config.get("learning_rate", 0.0)),
+            "num_train_epochs": float(config.get("num_train_epochs", 0.0)),
+            "max_steps": int(config.get("max_steps", -1)),
+            "use_peft": bool(config.get("use_peft", False)),
+            **{key: float(value) for key, value in train_result.metrics.items()},
+            **cuda_memory_summary(),
+        },
     )
 
 

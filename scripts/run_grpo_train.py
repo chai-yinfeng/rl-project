@@ -241,9 +241,31 @@ def main() -> None:
     train_result = trainer.train()
     trainer.save_model(config["output_dir"])
     trainer.save_state()
+    effective_batch_size = int(config.get("per_device_train_batch_size", 1)) * int(
+        config.get("gradient_accumulation_steps", 1)
+    )
     write_json(
         Path(config["output_dir"]) / "metrics" / "train.json",
-        {key: float(value) for key, value in train_result.metrics.items()},
+        {
+            "method": "grpo",
+            "model_name_or_path": config["model_name_or_path"],
+            "train_examples": len(train_dataset),
+            "group_size": int(config.get("num_generations", 1)),
+            "num_generations": int(config.get("num_generations", 1)),
+            "generation_batch_size": int(config.get("generation_batch_size", 0) or 0),
+            "effective_batch_size": effective_batch_size,
+            "per_device_train_batch_size": int(config.get("per_device_train_batch_size", 1)),
+            "gradient_accumulation_steps": int(config.get("gradient_accumulation_steps", 1)),
+            "learning_rate": float(config.get("learning_rate", 0.0)),
+            "max_steps": int(config.get("max_steps", -1)),
+            "beta": float(config.get("beta", 0.0)),
+            "max_completion_length": int(config.get("max_completion_length", 0) or 0),
+            "train_eval_limit": int(config.get("train_eval_limit", 0) or 0),
+            "train_eval_steps": int(config.get("train_eval_steps", 0) or 0),
+            "use_peft": bool(config.get("use_peft", False)),
+            **{key: float(value) for key, value in train_result.metrics.items()},
+            **cuda_memory_summary(),
+        },
     )
 
 
