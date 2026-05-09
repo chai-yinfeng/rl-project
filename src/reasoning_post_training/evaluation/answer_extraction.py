@@ -16,6 +16,10 @@ _LABELED_FINAL_RE = re.compile(
     r"([-+]?(?:\d[\d,]*)(?:\.\d+)?)",
     flags=re.IGNORECASE,
 )
+_BOXED_ANSWER_RE = re.compile(
+    r"\\boxed\{\s*([-+]?(?:\d[\d,]*)(?:\.\d+)?)\s*\}",
+    flags=re.IGNORECASE,
+)
 _NUMBER_RE = re.compile(r"[-+]?(?:\d[\d,]*)(?:\.\d+)?")
 _GENERATION_LEAK_MARKERS = (
     "\nHuman:",
@@ -70,6 +74,10 @@ def extract_predicted_answer(completion: str) -> str | None:
     if final_match:
         return normalize_numeric_answer(final_match.group(1))
 
+    boxed_matches = list(_BOXED_ANSWER_RE.finditer(completion))
+    if boxed_matches:
+        return normalize_numeric_answer(boxed_matches[-1].group(1))
+
     labeled_matches = list(_LABELED_FINAL_RE.finditer(completion))
     if labeled_matches:
         return normalize_numeric_answer(labeled_matches[0].group(1))
@@ -90,6 +98,9 @@ def truncate_completion(completion: str) -> str:
     final_match = _FINAL_ANSWER_RE.search(text)
     if final_match:
         cut = min(cut, final_match.end())
+    boxed_matches = list(_BOXED_ANSWER_RE.finditer(text))
+    if boxed_matches:
+        cut = min(cut, boxed_matches[-1].end())
     for marker in _GENERATION_LEAK_MARKERS:
         marker_index = text.find(marker)
         if marker_index >= 0:

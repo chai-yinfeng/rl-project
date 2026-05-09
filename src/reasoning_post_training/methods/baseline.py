@@ -22,7 +22,11 @@ def prompt_hash(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
 
-def read_completed_indices(output_path: Path, expected_prompt_hashes: dict[int, str] | None = None) -> set[int]:
+def read_completed_indices(
+    output_path: Path,
+    expected_prompt_hashes: dict[int, str] | None = None,
+    expected_generation_config: dict[str, Any] | None = None,
+) -> set[int]:
     if not output_path.exists():
         return set()
     completed: set[int] = set()
@@ -37,6 +41,9 @@ def read_completed_indices(output_path: Path, expected_prompt_hashes: dict[int, 
                     expected = expected_prompt_hashes.get(example_index)
                     actual = record.get("prompt_hash")
                     if actual != expected:
+                        continue
+                if expected_generation_config is not None:
+                    if any(record.get(key) != value for key, value in expected_generation_config.items()):
                         continue
                 completed.add(example_index)
     return completed
@@ -176,7 +183,17 @@ def evaluate_gsm8k_model(
         index: prompt_hash(str(dataset[index]["prompt"]))
         for index in indices
     }
-    completed = read_completed_indices(output_path, expected_prompt_hashes) if resume else set()
+    expected_generation_config = {
+        "max_new_tokens": max_new_tokens,
+        "temperature": temperature,
+        "top_p": top_p,
+        "use_chat_template": use_chat_template,
+    }
+    completed = (
+        read_completed_indices(output_path, expected_prompt_hashes, expected_generation_config)
+        if resume
+        else set()
+    )
     pending_indices = [index for index in indices if index not in completed]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -216,6 +233,7 @@ def evaluate_gsm8k_model(
                             "question": record["question"],
                             "prompt": prompt,
                             "prompt_hash": prompt_hash(prompt),
+                            **expected_generation_config,
                             "completion": completion,
                             "predicted_answer": extract_predicted_answer(completion),
                             "gold_answer": record["gold_answer"],
@@ -227,16 +245,28 @@ def evaluate_gsm8k_model(
                 )
                 handle.flush()
 
-    completions: list[str] = []
-    gold_answers: list[str] = []
-    lengths: list[int] = []
+    records_by_index: dict[int, dict[str, Any]] = {}
     with output_path.open("r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
             record = json.loads(line)
-            if int(record["example_index"]) not in indices:
+            example_index = int(record["example_index"])
+            if example_index not in indices:
                 continue
+            if record.get("prompt_hash") != expected_prompt_hashes.get(example_index):
+                continue
+            if any(record.get(key) != value for key, value in expected_generation_config.items()):
+                continue
+            records_by_index[example_index] = record
+
+    completions: list[str] = []
+    gold_answers: list[str] = []
+    lengths: list[int] = []
+    for index in indices:
+        record = records_by_index.get(index)
+        if record is None:
+            continue
             completion = str(record["completion"])
             completions.append(completion)
             gold_answers.append(str(record["gold_answer"]))
@@ -254,6 +284,9 @@ def evaluate_gsm8k_model(
         "max_new_tokens": max_new_tokens,
         "temperature": temperature,
         "use_chat_template": use_chat_template,
+        "resume": resume,
+        "completed_at_start": len(completed),
+        "pending_at_start": len(pending_indices),
         "average_completion_chars": sum(lengths) / len(lengths) if lengths else 0.0,
         "elapsed_seconds": time.time() - started_at,
         **cuda_memory_summary(),

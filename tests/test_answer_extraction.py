@@ -38,6 +38,16 @@ def test_extract_predicted_answer_falls_back_to_last_number():
     assert extract_predicted_answer("The result is therefore 7.") == "7"
 
 
+def test_extract_predicted_answer_handles_boxed_latex_answers():
+    completion = r"Work: 9 \times 2 = 18. Therefore, \(\boxed{18}\)."
+    assert extract_predicted_answer(completion) == "18"
+
+
+def test_truncate_completion_stops_after_boxed_answer():
+    completion = r"Work: 9 \times 2 = 18. Therefore, \boxed{18}. Extra 99"
+    assert truncate_completion(completion) == r"Work: 9 \times 2 = 18. Therefore, \boxed{18}"
+
+
 def test_extract_predicted_answer_handles_very_large_integers():
     huge = "9" * 120
     assert extract_predicted_answer(f"Final answer: {huge}") == huge
