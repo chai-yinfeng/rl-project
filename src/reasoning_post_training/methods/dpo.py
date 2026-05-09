@@ -8,16 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
-from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
+from reasoning_post_training.rewards.gsm8k import correctness_reward, grpo_shaped_reward
 
 
 def score_gsm8k_completion(completion: str, gold_answer: str | int | float | None) -> float:
-    """Score a completion with the same rule reward used by GRPO."""
-    score = correctness_reward(completion, gold_answer)
-    score += format_reward(completion)
-    if extract_predicted_answer(completion) is None:
-        score -= 0.1
-    return score
+    """Score a completion with the same shaped rule reward used by GRPO."""
+    return grpo_shaped_reward(completion, gold_answer)
 
 
 def choose_preference_pair(
@@ -61,7 +57,7 @@ def build_gold_chosen_pair(
     gold_answer: str | int | float | None,
 ) -> dict[str, Any]:
     """Build a reliable DPO pair using the dataset solution as chosen."""
-    chosen = f"{str(answer).strip()}\n\nFinal answer: {gold_answer}"
+    chosen = f"{str(answer).strip()}\nFinal answer: {gold_answer}"
     return {
         "chosen": chosen,
         "rejected": rejected_completion,

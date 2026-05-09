@@ -212,6 +212,8 @@ def main() -> None:
                 command.append("--allow-ties")
             if dpo_pair_config.get("include_gold_chosen", False):
                 command.append("--include-gold-chosen")
+            if dpo_pair_config.get("gold_fallback", False):
+                command.append("--gold-fallback")
             run_command(command, dry_run=args.dry_run, run_dir=run_dir, stage=stage)
 
         elif stage == "dpo-train":

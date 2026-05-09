@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-ties", action="store_true")
     parser.add_argument("--include-gold-chosen", action="store_true")
+    parser.add_argument("--gold-fallback", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -126,6 +127,7 @@ def main() -> None:
                     "batch_size": args.batch_size,
                     "num_completions": args.num_completions,
                     "include_gold_chosen": args.include_gold_chosen,
+                    "gold_fallback": args.gold_fallback,
                     "use_chat_template": not args.no_chat_template,
                     "output": str(args.output),
                 },
@@ -172,6 +174,12 @@ def main() -> None:
                         record["gold_answer"],
                         require_distinct_scores=not args.allow_ties,
                     )
+                    if pair is None and args.gold_fallback:
+                        pair = build_gold_chosen_pair_from_completions(
+                            completions,
+                            record["answer"],
+                            record["gold_answer"],
+                        )
                 if pair is None:
                     skipped += 1
                     continue

@@ -10,7 +10,7 @@ from typing import Any
 
 from reasoning_post_training.datasets.gsm8k import format_gsm8k_chat_prompt
 from reasoning_post_training.experiments import append_jsonl, cuda_memory_summary, write_json
-from reasoning_post_training.rewards.gsm8k import correctness_reward, format_reward
+from reasoning_post_training.rewards.gsm8k import grpo_shaped_reward
 from reasoning_post_training.evaluation.answer_extraction import extract_predicted_answer
 
 
@@ -24,11 +24,7 @@ def build_ppo_dataset(split: str, subset: str, max_examples: int | None = None):
 
 
 def ppo_rule_reward(completion: str, gold_answer: str | int | float | None) -> float:
-    reward = correctness_reward(completion, gold_answer)
-    reward += format_reward(completion)
-    if extract_predicted_answer(completion) is None:
-        reward -= 0.1
-    return reward
+    return grpo_shaped_reward(completion, gold_answer)
 
 
 def _resolve_torch_dtype(dtype_name: str):
