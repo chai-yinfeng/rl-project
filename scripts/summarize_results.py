@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-METHODS = ("baseline", "dpo", "grpo", "ppo")
+METHODS = ("baseline", "math_baseline", "dpo", "grpo", "ppo")
 SUMMARY_COLUMNS = [
     "run",
     "method",

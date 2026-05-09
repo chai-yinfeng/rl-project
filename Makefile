@@ -1,7 +1,7 @@
 .PHONY: lock sync sync-quant pip-install-dev pip-install-quant pip-test test inspect-gsm8k package-results \
 	qwen0_5b-dry-run qwen0_5b-test qwen0_5b-run qwen0_5b-eval qwen0_5b-all \
 	qwen1_5b-dry-run qwen1_5b-test qwen1_5b-run qwen1_5b-eval qwen1_5b-all \
-	math-1_5b-dry-run math-1_5b-eval \
+	math-1_5b-dry-run math-1_5b-test math-1_5b-run math-1_5b-eval \
 	grpo-gs2-1_5b-dry-run grpo-gs2-1_5b-run grpo-gs2-1_5b-eval grpo-gs2-1_5b-all \
 	grpo-gs4-1_5b-dry-run grpo-gs4-1_5b-run grpo-gs4-1_5b-eval grpo-gs4-1_5b-all \
 	grpo-gs8-1_5b-dry-run grpo-gs8-1_5b-run grpo-gs8-1_5b-eval grpo-gs8-1_5b-all \
@@ -22,7 +22,6 @@ QWEN0_TEST_CONFIG := configs/experiments/gsm8k_qwen0_5b_test.json
 QWEN0_FULL_CONFIG := configs/experiments/gsm8k_qwen0_5b_full.json
 QWEN1_TEST_CONFIG := configs/experiments/gsm8k_qwen1_5b_test.json
 QWEN1_FULL_CONFIG := configs/experiments/gsm8k_qwen1_5b_full.json
-QWEN_MATH1_REF_CONFIG := configs/experiments/gsm8k_qwen2_5_math1_5b_ref.json
 QWEN1_GRPO_GS2_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs2.json
 QWEN1_GRPO_GS4_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs4.json
 QWEN1_GRPO_GS8_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs8.json
@@ -86,10 +85,16 @@ qwen1_5b-all:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage all
 
 math-1_5b-dry-run:
-	$(PYTHON) scripts/run_experiment.py --config $(QWEN_MATH1_REF_CONFIG) --stage baseline --dry-run
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage math --dry-run
+
+math-1_5b-test:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage math
 
 math-1_5b-eval:
-	$(PYTHON) scripts/run_experiment.py --config $(QWEN_MATH1_REF_CONFIG) --stage baseline
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage math-eval
+
+math-1_5b-run:
+	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage math
 
 grpo-gs2-1_5b-dry-run:
 	$(PYTHON) scripts/run_experiment.py --config $(QWEN1_GRPO_GS2_CONFIG) --stage grpo --dry-run

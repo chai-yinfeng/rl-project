@@ -2,6 +2,7 @@
   "run_name": "gsm8k_qwen1_5b_test",
   "output_root": "experiments",
   "model_name_or_path": "Qwen/Qwen2.5-1.5B-Instruct",
+  "math_model_name_or_path": "Qwen/Qwen2.5-Math-1.5B-Instruct",
   "eval": {
     "split": "test",
     "subset": "main",
@@ -9,6 +10,17 @@
     "batch_size": 4,
     "max_new_tokens": 128,
     "temperature": 0,
+    "top_p": 0.95,
+    "torch_dtype": "float16",
+    "use_chat_template": true
+  },
+  "math_eval": {
+    "split": "test",
+    "subset": "main",
+    "limit": 8,
+    "batch_size": 2,
+    "max_new_tokens": 96,
+    "temperature": 0.0,
     "top_p": 0.95,
     "torch_dtype": "float16",
     "use_chat_template": true

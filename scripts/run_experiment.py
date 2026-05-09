@@ -16,6 +16,7 @@ from reasoning_post_training.experiments import append_jsonl, prepare_run_dir, t
 
 STAGE_ORDER = [
     "baseline",
+    "math-baseline",
     "dpo-pairs",
     "dpo-train",
     "dpo-eval",
@@ -27,8 +28,11 @@ STAGE_ORDER = [
 
 STAGE_GROUPS = {
     "all": STAGE_ORDER,
-    "run": ["baseline", "dpo-pairs", "dpo-train", "grpo-train", "ppo-train"],
-    "eval": ["baseline", "dpo-eval", "grpo-eval", "ppo-eval"],
+    "run": ["baseline", "math-baseline", "dpo-pairs", "dpo-train", "grpo-train", "ppo-train"],
+    "eval": ["baseline", "math-baseline", "dpo-eval", "grpo-eval", "ppo-eval"],
+    "math": ["math-baseline"],
+    "math-baseline": ["math-baseline"],
+    "math-eval": ["math-baseline"],
     "dpo": ["dpo-pairs", "dpo-train", "dpo-eval"],
     "dpo-run": ["dpo-pairs", "dpo-train"],
     "grpo": ["grpo-train", "grpo-eval"],
@@ -169,6 +173,24 @@ def main() -> None:
                     eval_config=eval_config,
                     output=run_dir / "data" / "baseline_predictions.jsonl",
                     metrics_output=run_dir / "metrics" / "baseline.json",
+                ),
+                dry_run=args.dry_run,
+                run_dir=run_dir,
+                stage=stage,
+            )
+
+        elif stage == "math-baseline":
+            math_model = config.get("math_model_name_or_path")
+            if not math_model:
+                raise ValueError("math-baseline stage requires math_model_name_or_path in config.")
+            math_eval_config = {**eval_config, **config.get("math_eval", {})}
+            run_command(
+                build_eval_command(
+                    model=math_model,
+                    adapter=None,
+                    eval_config=math_eval_config,
+                    output=run_dir / "data" / "math_baseline_predictions.jsonl",
+                    metrics_output=run_dir / "metrics" / "math_baseline.json",
                 ),
                 dry_run=args.dry_run,
                 run_dir=run_dir,
