@@ -31,5 +31,5 @@ wandb/
 .idea/
 .vscode/
 
-# experiments report
+# 20260510_512_experiments report
 reports/run_snapshots/*.tar.gz

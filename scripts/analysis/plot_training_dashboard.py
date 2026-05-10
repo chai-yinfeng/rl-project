@@ -84,7 +84,7 @@ def trainer_state_path(run_dir: Path, method: str) -> Path:
 def numeric_value(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         if math.isfinite(float(value)):
             return float(value)
         return None

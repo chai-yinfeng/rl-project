@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("experiments/training_rewards.png"),
+        default=Path("20260510_512_experiments/training_rewards.png"),
         help="Figure output path, for example .png, .pdf, or .svg.",
     )
     parser.add_argument(

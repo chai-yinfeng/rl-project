@@ -35,8 +35,8 @@ SUMMARY_COLUMNS = [
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dirs", nargs="+", type=Path)
-    parser.add_argument("--csv-output", type=Path, default=Path("experiments/summary.csv"))
-    parser.add_argument("--md-output", type=Path, default=Path("experiments/summary.md"))
+    parser.add_argument("--csv-output", type=Path, default=Path("20260510_512_experiments/summary.csv"))
+    parser.add_argument("--md-output", type=Path, default=Path("20260510_512_experiments/summary.md"))
     return parser.parse_args()
 
 

@@ -11,7 +11,7 @@
 	ppo-0_5b-dry-run ppo-0_5b-test ppo-0_5b-run ppo-0_5b-eval \
 	baseline-1_5b-dry-run baseline-1_5b-test baseline-1_5b-run baseline-1_5b-eval \
 	dpo-1_5b-dry-run dpo-1_5b-test dpo-1_5b-run dpo-1_5b-eval \
-	grpo-1_5b-dry-run grpo-1_5b-test grpo-1_5b-run grpo-1_5b-eval \
+	grpo-1_5b-dry-run grpo-1_5b-test grpo-1_5b-run grpo-1_5b-eval grpo-1_5b-all \
 	ppo-1_5b-dry-run ppo-1_5b-test ppo-1_5b-run ppo-1_5b-eval
 
 UV ?= uv
@@ -22,6 +22,7 @@ QWEN0_TEST_CONFIG := configs/experiments/gsm8k_qwen0_5b_test.json
 QWEN0_FULL_CONFIG := configs/experiments/gsm8k_qwen0_5b_full.json
 QWEN1_TEST_CONFIG := configs/experiments/gsm8k_qwen1_5b_test.json
 QWEN1_FULL_CONFIG := configs/experiments/gsm8k_qwen1_5b_full.json
+QWEN1_GRPO_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo.json
 QWEN1_GRPO_GS2_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs2.json
 QWEN1_GRPO_GS4_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs4.json
 QWEN1_GRPO_GS8_CONFIG := configs/experiments/gsm8k_qwen1_5b_grpo_gs8.json
@@ -205,16 +206,19 @@ dpo-1_5b-eval:
 	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage dpo-eval
 
 grpo-1_5b-dry-run:
-	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo --dry-run
+	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_GRPO_CONFIG) --stage grpo --dry-run
 
 grpo-1_5b-test:
 	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_TEST_CONFIG) --stage grpo
 
 grpo-1_5b-run:
-	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo-run
+	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_GRPO_CONFIG) --stage grpo-run
 
 grpo-1_5b-eval:
-	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage grpo-eval
+	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_GRPO_CONFIG) --stage grpo-eval
+
+grpo-1_5b-all:
+	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_GRPO_CONFIG) --stage grpo
 
 ppo-1_5b-dry-run:
 	$(PYTHON) scripts/experiments/run_experiment.py --config $(QWEN1_FULL_CONFIG) --stage ppo --dry-run

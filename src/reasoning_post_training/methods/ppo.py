@@ -1,4 +1,4 @@
-"""PPO training helpers for rule-reward GSM8K experiments."""
+"""PPO training helpers for rule-reward GSM8K 20260510_512_experiments."""
 
 from __future__ import annotations
 

@@ -151,7 +151,7 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
     run_name = config.get("run_name") or f"{Path(args.config).stem}_{timestamp()}"
-    output_root = Path(config.get("output_root", "experiments"))
+    output_root = Path(config.get("output_root", "20260510_512_experiments"))
     run_dir = prepare_run_dir(output_root, run_name, config)
 
     model = config["model_name_or_path"]
