@@ -80,7 +80,7 @@ def run_command(command: list[str], *, dry_run: bool, run_dir: Path, stage: str)
         )
         assert process.stdout is not None
         for line in process.stdout:
-            print(line, end="")
+            print(line, end="", flush=True)
             log_handle.write(line)
             log_handle.flush()
         returncode = process.wait()

@@ -22,7 +22,7 @@ for target in "$@"; do
   log_path="${log_dir}/${safe_target}.log"
 
   echo "[run_make_targets] starting ${target}"
-  if make "${target}" 2>&1 | tee "${log_path}"; then
+  if PYTHONUNBUFFERED=1 make "${target}" 2>&1 | tee "${log_path}"; then
     status=0
   else
     status=$?
