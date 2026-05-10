@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -u
+set -o pipefail
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 TARGET [TARGET ...]" >&2
@@ -25,14 +26,10 @@ for target in "$@"; do
     status=0
   else
     status=$?
-    overall_status="${status}"
+    if [ "${overall_status}" -eq 0 ]; then
+      overall_status="${status}"
+    fi
     echo "[run_make_targets] target failed: ${target} (status ${status})" >&2
-    ended_epoch="$(date +%s)"
-    ended_at="$(date -Iseconds)"
-    printf "%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "${target}" "${status}" "${started_at}" "${ended_at}" \
-      "$((ended_epoch - started_epoch))" "${log_path}" >> "${summary}"
-    break
   fi
 
   ended_epoch="$(date +%s)"
