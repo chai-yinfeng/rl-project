@@ -6,8 +6,8 @@
     "split": "test",
     "subset": "main",
     "limit": 1319,
-    "batch_size": 4,
-    "max_new_tokens": 2048,
+    "batch_size": 16,
+    "max_new_tokens": 512,
     "temperature": 0,
     "top_p": 0.95,
     "torch_dtype": "bfloat16",
@@ -22,11 +22,11 @@
     "per_device_train_batch_size": 2,
     "gradient_accumulation_steps": 4,
     "max_steps": 250,
-    "learning_rate": 5e-7,
+    "learning_rate": 5e-07,
     "num_generations": 8,
     "generation_batch_size": 8,
     "max_prompt_length": 512,
-    "max_completion_length": 1024,
+    "max_completion_length": 512,
     "temperature": 0.7,
     "top_p": 0.95,
     "beta": 0.02,
@@ -61,6 +61,6 @@
     "train_eval_limit": 64,
     "train_eval_steps": 25,
     "train_eval_batch_size": 2,
-    "train_eval_max_new_tokens": 1024
+    "train_eval_max_new_tokens": 512
   }
 }
