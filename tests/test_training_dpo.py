@@ -13,6 +13,7 @@ from reasoning_post_training.methods.dpo import (
 
 def test_score_gsm8k_completion_combines_correctness_and_format():
     assert score_gsm8k_completion("Reasoning.\nFinal answer: 42", "42") == 1.2
+    assert score_gsm8k_completion("Reasoning.\nFinal answer: 12", "42") <= 0.0
     assert score_gsm8k_completion("No numeric answer here", "42") == -0.25
 
 
